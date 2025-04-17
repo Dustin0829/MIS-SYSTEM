@@ -1,0 +1,180 @@
+/* STI Theme - Yellow and Blue color scheme */
+
+:root {
+  --primary-color: #0053a5; /* Blue from logo */
+  --secondary-color: #ffe600; /* Yellow from logo */
+  --primary-dark: #004080;
+  --secondary-dark: #e6cf00;
+  --primary-light: #1a75c7;
+  --secondary-light: #fff149;
+  --primary-text: #333;
+  --light-text: #fff;
+}
+
+/* Navbar styling */
+.navbar {
+  background-color: var(--primary-color) !important;
+}
+
+.navbar-brand, .navbar .nav-link {
+  color: var(--light-text) !important;
+}
+
+/* Button styling */
+.btn-primary {
+  background-color: var(--primary-color) !important;
+  border-color: var(--primary-dark) !important;
+}
+
+.btn-primary:hover, .btn-primary:focus {
+  background-color: var(--primary-dark) !important;
+  border-color: var(--primary-dark) !important;
+}
+
+.btn-secondary {
+  background-color: var(--secondary-color) !important;
+  border-color: var(--secondary-dark) !important;
+  color: var(--primary-text) !important;
+}
+
+.btn-secondary:hover, .btn-secondary:focus {
+  background-color: var(--secondary-dark) !important;
+  border-color: var(--secondary-dark) !important;
+}
+
+/* Card styling */
+.card-header {
+  background-color: var(--primary-color) !important;
+  color: white !important;
+}
+
+/* Table styling */
+.table thead {
+  background-color: var(--primary-color);
+  color: white;
+}
+
+/* Badge styling */
+.bg-primary {
+  background-color: var(--primary-color) !important;
+}
+
+.bg-secondary {
+  background-color: var(--secondary-color) !important;
+  color: var(--primary-text) !important;
+}
+
+.bg-success {
+  background-color: var(--secondary-color) !important;
+  color: var(--primary-text) !important;
+}
+
+.bg-warning {
+  background-color: var(--secondary-color) !important;
+  color: var(--primary-text) !important;
+}
+
+/* Login page */
+.login-container {
+  position: relative;
+  min-height: 100vh;
+  padding: 20px;
+}
+
+.login-container::before {
+  content: '';
+  background: url('./images/sti-background.png') no-repeat center center;
+  background-size: cover;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  opacity: .78; /* Adjust opacity (0 to 1) */
+  z-index: -1; /* Place behind content */
+}
+
+.login-container .row {
+  position: relative;
+  z-index: 1;
+  opacity: .96;
+}
+
+.login-card {
+  backdrop-filter: blur(5px);
+  background-color: rgba(255, 255, 255, 0.9);
+  border: 2px solid var(--secondary-color);
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 15px 25px rgba(0, 0, 0, 0.3) !important;
+  transform: translateY(0);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  animation: float 6s ease-in-out infinite;
+}
+
+@keyframes float {
+  0% {
+    transform: translateY(0px);
+    box-shadow: 0 15px 25px rgba(0, 0, 0, 0.3);
+  }
+  50% {
+    transform: translateY(-10px);
+    box-shadow: 0 25px 35px rgba(0, 0, 0, 0.2);
+  }
+  100% {
+    transform: translateY(0px);
+    box-shadow: 0 15px 25px rgba(0, 0, 0, 0.3);
+  }
+}
+
+.login-header {
+  background-color: var(--secondary-color) !important;
+  color: var(--primary-color) !important;
+  font-weight: bold;
+  border-bottom: 3px solid var(--primary-color);
+}
+
+.login-card input.form-control:focus {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 0.25rem rgba(0, 83, 165, 0.25);
+}
+
+.login-card .btn-primary {
+  padding: 10px;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+/* STI Logo colors */
+.sti-logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  color: var(--primary-color);
+  background-color: var(--secondary-color);
+  border: 2px solid var(--primary-color);
+  padding: 5px;
+  border-radius: 5px;
+  font-weight: bold;
+  font-size: 18px;
+  margin-right: 10px;
+}
+
+.sti-logo::before {
+  content: 'STI';
+  font-weight: bold;
+}
+
+/* Footer */
+.footer {
+  background-color: var(--primary-color);
+  color: white;
+}
+
+/* Spinner */
+.spinner-border.text-primary {
+  color: var(--primary-color) !important;
+} 
