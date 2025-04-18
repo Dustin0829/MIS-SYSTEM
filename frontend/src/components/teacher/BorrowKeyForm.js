@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { getAvailableKeys, borrowKey } from '../../services/api';
 import { useNavigate } from 'react-router-dom';
 import Swal from 'sweetalert2';
@@ -16,7 +16,7 @@ const BorrowKeyForm = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const navigate = useNavigate();
 
-  const fetchAvailableKeys = async () => {
+  const fetchAvailableKeys = useCallback(async () => {
     try {
       setLoading(true);
       setError('');
@@ -94,11 +94,11 @@ const BorrowKeyForm = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchAvailableKeys();
-  }, []);
+  }, [fetchAvailableKeys]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { getBorrowedKeys, returnKey } from '../../services/api';
 import { useNavigate } from 'react-router-dom';
 import Swal from 'sweetalert2';
@@ -12,7 +12,7 @@ const ReturnKeyForm = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const navigate = useNavigate();
 
-  const fetchBorrowedKeys = async () => {
+  const fetchBorrowedKeys = useCallback(async () => {
     try {
       setLoading(true);
       setError('');
@@ -97,11 +97,11 @@ const ReturnKeyForm = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchBorrowedKeys();
-  }, []);
+  }, [fetchBorrowedKeys]);
 
   const handleBorrowSelect = (e) => {
     setSelectedBorrowId(e.target.value);
