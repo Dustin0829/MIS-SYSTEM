@@ -38,14 +38,14 @@ const PORT = process.env.PORT || 5123;
 const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret_key';
 
 // Specific frontend URL
-const FRONTEND_URL = 'https://sti-g7yhrudb6-franc-egos-projects.vercel.app';
+const FRONTEND_URL = 'https://sti-9w4usejxj-franc-egos-projects.vercel.app';
 
 // Serve static files from public directory
 app.use(express.static('public'));
 
 // CORS configuration
 app.use(cors({
-  origin: ['https://sti-g7yhrudb6-franc-egos-projects.vercel.app', 'http://localhost:3000'],
+  origin: ['https://sti-9w4usejxj-franc-egos-projects.vercel.app', 'http://localhost:3000'],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true
