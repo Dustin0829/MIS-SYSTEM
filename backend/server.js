@@ -1,106 +1,195 @@
+// Load environment variables from .env file
+require('dotenv').config();
+
 const express = require('express');
 const cors = require('cors');
-const sqlite3 = require('sqlite3').verbose();
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
+const { createClient } = require('@supabase/supabase-js');
 
-// Database setup
-const db = new sqlite3.Database('./database.sqlite', (err) => {
-  if (err) {
-    console.error('Error connecting to the database:', err.message);
-  } else {
-    console.log('Connected to the SQLite database');
-    initializeDatabase();
-  }
-});
+// Supabase configuration
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_ANON_KEY;
 
-// Initialize database tables
-function initializeDatabase() {
-  // Users table (for admin and teachers)
-  db.run(`CREATE TABLE IF NOT EXISTS users (
-    id TEXT PRIMARY KEY,
-    name TEXT NOT NULL,
-    email TEXT,
-    password TEXT NOT NULL,
-    role TEXT NOT NULL
-  )`);
+console.log('ENV CHECK - SUPABASE_URL exists:', !!supabaseUrl);
+console.log('ENV CHECK - SUPABASE_ANON_KEY exists:', !!supabaseKey);
+console.log('ENV CHECK - SUPABASE_URL prefix:', supabaseUrl ? supabaseUrl.substring(0, 10) + '...' : 'undefined');
 
-  // Keys table
-  db.run(`CREATE TABLE IF NOT EXISTS keys (
-    keyId TEXT PRIMARY KEY,
-    lab TEXT NOT NULL,
-    status TEXT NOT NULL
-  )`);
+const supabase = createClient(supabaseUrl, supabaseKey);
 
-  // Transactions table (for borrowing and returning)
-  db.run(`CREATE TABLE IF NOT EXISTS transactions (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    teacherId TEXT NOT NULL,
-    keyId TEXT NOT NULL,
-    borrowDate TEXT NOT NULL,
-    returnDate TEXT,
-    FOREIGN KEY (teacherId) REFERENCES users (id),
-    FOREIGN KEY (keyId) REFERENCES keys (keyId)
-  )`);
-
-  // Create initial admin user if it doesn't exist
-  const saltRounds = 10;
-  bcrypt.hash('admin123', saltRounds, (err, hash) => {
-    if (err) {
-      console.error('Error hashing password:', err);
-      return;
+// Test Supabase connection immediately
+(async () => {
+  try {
+    console.log('Testing Supabase connection...');
+    const { data, error } = await supabase.from('users').select('id').limit(1);
+    if (error) {
+      console.error('STARTUP ERROR: Supabase connection failed:', error.message);
+    } else {
+      console.log('Supabase connection successful, found users:', data.length);
     }
-    
-    db.get('SELECT * FROM users WHERE id = ?', ['admin'], (err, row) => {
-      if (err) {
-        console.error('Error checking for admin user:', err);
-        return;
-      }
-      
-      if (!row) {
-        console.log('Admin user not found, creating...');
-        db.run(
-          'INSERT INTO users (id, name, email, password, role) VALUES (?, ?, ?, ?, ?)',
-          ['admin', 'System Admin', 'admin@school.org', hash, 'admin'],
-          function(err) {
-            if (err) {
-              console.error('Error creating admin user:', err);
-            } else {
-              console.log('Admin user created successfully');
-            }
-          }
-        );
-      } else {
-        console.log('Admin user already exists');
-      }
-    });
-  });
-}
+  } catch (err) {
+    console.error('STARTUP ERROR: Unexpected error testing Supabase:', err.message);
+  }
+})();
 
 // Initialize Express app
 const app = express();
 const PORT = process.env.PORT || 5123;
-const JWT_SECRET = 'your_jwt_secret_key'; // In production, use environment variable
+const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret_key';
 
-// Middleware
+// Specific frontend URL
+const FRONTEND_URL = 'https://sti-pat9vocms-franc-egos-projects.vercel.app';
+
+// Serve static files from public directory
+app.use(express.static('public'));
+
+// CORS configuration
 app.use(cors({
-  origin: '*', // Allow all origins
+  origin: '*',
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
-  credentials: true
+  credentials: false
 }));
 
-// Enable pre-flight for all routes
-app.options('*', cors());
-
+// Enable JSON parsing
 app.use(express.json());
 
-// CORS headers middleware for all routes
-app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', '*');
-  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
-  next();
+// Root route
+app.get('/', (req, res) => {
+  res.json({ message: 'STI-MIS Backend API is running. Use /api/* endpoints to access the API.' });
+});
+
+// Direct test login page route
+app.get('/test-login', (req, res) => {
+  res.send(`
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Login Test</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    .container {
+      border: 1px solid #ccc;
+      padding: 20px;
+      border-radius: 5px;
+    }
+    .form-group {
+      margin-bottom: 15px;
+    }
+    label {
+      display: block;
+      margin-bottom: 5px;
+    }
+    input {
+      width: 100%;
+      padding: 8px;
+      box-sizing: border-box;
+    }
+    button {
+      background-color: #4CAF50;
+      color: white;
+      padding: 10px 15px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    #result {
+      margin-top: 20px;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      background-color: #f9f9f9;
+      min-height: 100px;
+    }
+    .success {
+      color: green;
+    }
+    .error {
+      color: red;
+    }
+  </style>
+</head>
+<body>
+  <h1>Login Test</h1>
+  
+  <div class="container">
+    <div class="form-group">
+      <label for="backendUrl">Backend URL (Current):</label>
+      <input type="text" id="backendUrl" value="${req.protocol}://${req.get('host')}">
+    </div>
+    
+    <div class="form-group">
+      <label for="userId">User ID:</label>
+      <input type="text" id="userId" value="admin">
+    </div>
+    
+    <div class="form-group">
+      <label for="password">Password:</label>
+      <input type="password" id="password" value="admin123">
+    </div>
+    
+    <div class="form-group">
+      <label for="endpoint">Endpoint:</label>
+      <select id="endpoint">
+        <option value="/api/login">Regular Login</option>
+        <option value="/api/login-debug" selected>Debug Login</option>
+      </select>
+    </div>
+    
+    <button onclick="testLogin()">Test Login</button>
+  </div>
+  
+  <h2>Result:</h2>
+  <div id="result">Results will appear here...</div>
+  
+  <script>
+    async function testLogin() {
+      const resultElem = document.getElementById('result');
+      resultElem.innerHTML = 'Sending request...';
+      
+      const backendUrl = document.getElementById('backendUrl').value;
+      const userId = document.getElementById('userId').value;
+      const password = document.getElementById('password').value;
+      const endpoint = document.getElementById('endpoint').value;
+      
+      try {
+        const response = await fetch(\`\${backendUrl}\${endpoint}\`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          },
+          body: JSON.stringify({ id: userId, password: password })
+        });
+        
+        const data = await response.json();
+        
+        let resultHtml = \`<p>Status: \${response.status} \${response.statusText}</p>\`;
+        
+        if (response.ok) {
+          resultHtml += \`<p class="success">Request successful</p>\`;
+        } else {
+          resultHtml += \`<p class="error">Request failed</p>\`;
+        }
+        
+        resultHtml += \`<pre>\${JSON.stringify(data, null, 2)}</pre>\`;
+        resultElem.innerHTML = resultHtml;
+      } catch (error) {
+        resultElem.innerHTML = \`
+          <p class="error">Error: \${error.message}</p>
+          <p>This could be a CORS error if the console shows Cross-Origin Request Blocked</p>
+        \`;
+      }
+    }
+  </script>
+</body>
+</html>
+  `);
 });
 
 // Authentication middleware
@@ -138,510 +227,60 @@ app.get('/api/hello', (req, res) => {
 // Routes
 
 // Authentication
-app.post('/api/login', (req, res) => {
-  console.log('Login attempt:', req.body);
+app.post('/api/login', async (req, res) => {
   const { id, password } = req.body;
   
   if (!id || !password) {
-    console.log('Missing credentials');
+    console.log('Login attempt missing credentials');
     return res.status(400).json({ error: 'ID and password are required' });
   }
   
-  db.get('SELECT * FROM users WHERE id = ?', [id], (err, user) => {
-    if (err) {
-      console.error('Database error:', err);
-      return res.status(500).json({ error: 'Database error' });
+  try {
+    console.log(`Login attempt for user: ${id}`);
+    
+    // Check environment variables
+    console.log(`Environment check: SUPABASE_URL exists: ${!!process.env.SUPABASE_URL}, SUPABASE_ANON_KEY exists: ${!!process.env.SUPABASE_ANON_KEY}`);
+    
+    // Query for user
+    const { data: user, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('id', id)
+      .single();
+    
+    if (error) {
+      console.error('Supabase error during login:', error);
+      return res.status(500).json({ 
+        error: 'Database error during login', 
+        details: error.message,
+        code: error.code 
+      });
     }
     
     if (!user) {
-      console.log('User not found:', id);
-      return res.status(401).json({ error: 'Invalid credentials' });
+      console.log(`Login failed: User ${id} not found`);
+      return res.status(401).json({ error: 'Invalid credentials (user not found)' });
     }
     
-    console.log('User found:', user.id, user.role);
+    console.log(`User found, validating password for ${id}`);
     
-    bcrypt.compare(password, user.password, (err, result) => {
-      if (err) {
-        console.error('Password comparison error:', err);
-        return res.status(500).json({ error: 'Password verification error' });
-      }
-      
-      if (!result) {
-        console.log('Password mismatch for user:', id);
-        return res.status(401).json({ error: 'Invalid credentials' });
-      }
-      
-      console.log('Login successful for user:', id);
-      
-      const token = jwt.sign(
-        { id: user.id, role: user.role, name: user.name },
-        JWT_SECRET,
-        { expiresIn: '8h' }
-      );
-      
-      res.json({ 
-        token,
-        user: {
-          id: user.id,
-          name: user.name,
-          email: user.email,
-          role: user.role
-        }
-      });
-    });
-  });
-});
-
-// Get current user info
-app.get('/api/me', authenticateToken, (req, res) => {
-  db.get('SELECT id, name, email, role FROM users WHERE id = ?', [req.user.id], (err, user) => {
-    if (err) {
-      return res.status(500).json({ error: 'Database error' });
+    // Compare password
+    const validPassword = await bcrypt.compare(password, user.password);
+    if (!validPassword) {
+      console.log(`Login failed: Password mismatch for ${id}`);
+      return res.status(401).json({ error: 'Invalid credentials (password mismatch)' });
     }
     
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
-    }
+    console.log(`Login successful for ${id}`);
     
-    res.json(user);
-  });
-});
-
-// Teacher routes
-app.get('/api/teachers', authenticateToken, (req, res) => {
-  db.all('SELECT id, name, email FROM users WHERE role = "teacher"', (err, teachers) => {
-    if (err) {
-      return res.status(500).json({ error: 'Database error' });
-    }
-    res.json(teachers);
-  });
-});
-
-app.post('/api/teachers', authenticateToken, authorizeAdmin, (req, res) => {
-  const { id, name, email, password } = req.body;
-  
-  if (!id || !name || !password) {
-    return res.status(400).json({ error: 'ID, name, and password are required' });
-  }
-  
-  // Check if teacher ID already exists
-  db.get('SELECT id FROM users WHERE id = ?', [id], (err, user) => {
-    if (err) {
-      return res.status(500).json({ error: 'Database error' });
-    }
-    
-    if (user) {
-      return res.status(400).json({ error: 'Teacher ID already exists' });
-    }
-    
-    // Hash password
-    bcrypt.hash(password, 10, (err, hash) => {
-      if (err) {
-        return res.status(500).json({ error: 'Error hashing password' });
-      }
-      
-      db.run(
-        'INSERT INTO users (id, name, email, password, role) VALUES (?, ?, ?, ?, ?)',
-        [id, name, email || null, hash, 'teacher'],
-        function(err) {
-          if (err) {
-            return res.status(500).json({ error: 'Error creating teacher' });
-          }
-          
-          res.status(201).json({
-            id,
-            name,
-            email
-          });
-        }
-      );
-    });
-  });
-});
-
-app.put('/api/teachers/:id', authenticateToken, authorizeAdmin, (req, res) => {
-  const { name, email } = req.body;
-  const { id } = req.params;
-  
-  if (!name) {
-    return res.status(400).json({ error: 'Name is required' });
-  }
-  
-  db.run(
-    'UPDATE users SET name = ?, email = ? WHERE id = ? AND role = "teacher"',
-    [name, email || null, id],
-    function(err) {
-      if (err) {
-        return res.status(500).json({ error: 'Error updating teacher' });
-      }
-      
-      if (this.changes === 0) {
-        return res.status(404).json({ error: 'Teacher not found' });
-      }
-      
-      res.json({ id, name, email });
-    }
-  );
-});
-
-app.delete('/api/teachers/:id', authenticateToken, authorizeAdmin, (req, res) => {
-  const { id } = req.params;
-  
-  // Check for active borrows
-  db.get(
-    'SELECT COUNT(*) as activeCount FROM transactions WHERE teacherId = ? AND returnDate IS NULL',
-    [id],
-    (err, result) => {
-      if (err) {
-        return res.status(500).json({ error: 'Database error' });
-      }
-      
-      if (result.activeCount > 0) {
-        return res.status(400).json({ error: 'Cannot delete teacher with active borrows' });
-      }
-      
-      db.run('DELETE FROM users WHERE id = ? AND role = "teacher"', [id], function(err) {
-        if (err) {
-          return res.status(500).json({ error: 'Error deleting teacher' });
-        }
-        
-        if (this.changes === 0) {
-          return res.status(404).json({ error: 'Teacher not found' });
-        }
-        
-        res.json({ message: 'Teacher deleted successfully' });
-      });
-    }
-  );
-});
-
-// Key routes
-app.get('/api/keys', authenticateToken, (req, res) => {
-  db.all('SELECT keyId, lab, status FROM keys', (err, keys) => {
-    if (err) {
-      return res.status(500).json({ error: 'Database error' });
-    }
-    res.json(keys);
-  });
-});
-
-app.post('/api/keys', authenticateToken, authorizeAdmin, (req, res) => {
-  const { keyId, lab } = req.body;
-  
-  if (!keyId || !lab) {
-    return res.status(400).json({ error: 'Key ID and lab name are required' });
-  }
-  
-  // Check if key ID already exists
-  db.get('SELECT keyId FROM keys WHERE keyId = ?', [keyId], (err, key) => {
-    if (err) {
-      return res.status(500).json({ error: 'Database error' });
-    }
-    
-    if (key) {
-      return res.status(400).json({ error: 'Key ID already exists' });
-    }
-    
-    db.run(
-      'INSERT INTO keys (keyId, lab, status) VALUES (?, ?, ?)',
-      [keyId, lab, 'Available'],
-      function(err) {
-        if (err) {
-          return res.status(500).json({ error: 'Error adding key' });
-        }
-        
-        res.status(201).json({
-          keyId,
-          lab,
-          status: 'Available'
-        });
-      }
+    const token = jwt.sign(
+      { id: user.id, role: user.role, name: user.name },
+      JWT_SECRET,
+      { expiresIn: '8h' }
     );
-  });
-});
-
-app.delete('/api/keys/:keyId', authenticateToken, authorizeAdmin, (req, res) => {
-  const { keyId } = req.params;
-  
-  // Check if key is currently borrowed
-  db.get('SELECT status FROM keys WHERE keyId = ?', [keyId], (err, key) => {
-    if (err) {
-      return res.status(500).json({ error: 'Database error' });
-    }
     
-    if (!key) {
-      return res.status(404).json({ error: 'Key not found' });
-    }
-    
-    if (key.status === 'Borrowed') {
-      return res.status(400).json({ error: 'Cannot delete a borrowed key' });
-    }
-    
-    db.run('DELETE FROM keys WHERE keyId = ?', [keyId], function(err) {
-      if (err) {
-        return res.status(500).json({ error: 'Error deleting key' });
-      }
-      
-      res.json({ message: 'Key deleted successfully' });
-    });
-  });
-});
-
-// Borrow/Return routes
-app.post('/api/borrow', authenticateToken, (req, res) => {
-  const { keyId } = req.body;
-  const teacherId = req.user.id;
-  
-  if (!keyId) {
-    return res.status(400).json({ error: 'Key ID is required' });
-  }
-  
-  // Check if key is available
-  db.get('SELECT status FROM keys WHERE keyId = ?', [keyId], (err, key) => {
-    if (err) {
-      return res.status(500).json({ error: 'Database error' });
-    }
-    
-    if (!key) {
-      return res.status(404).json({ error: 'Key not found' });
-    }
-    
-    if (key.status !== 'Available') {
-      return res.status(400).json({ error: 'Key is not available' });
-    }
-    
-    // Get current timestamp
-    const borrowDate = new Date().toISOString();
-    
-    // Start a transaction
-    db.serialize(() => {
-      db.run('BEGIN TRANSACTION');
-      
-      // Update key status
-      db.run(
-        'UPDATE keys SET status = ? WHERE keyId = ?',
-        ['Borrowed', keyId],
-        function(err) {
-          if (err) {
-            db.run('ROLLBACK');
-            return res.status(500).json({ error: 'Error updating key status' });
-          }
-          
-          // Create transaction record
-          db.run(
-            'INSERT INTO transactions (teacherId, keyId, borrowDate) VALUES (?, ?, ?)',
-            [teacherId, keyId, borrowDate],
-            function(err) {
-              if (err) {
-                db.run('ROLLBACK');
-                return res.status(500).json({ error: 'Error creating transaction record' });
-              }
-              
-              db.run('COMMIT');
-              res.status(201).json({
-                id: this.lastID,
-                teacherId,
-                keyId,
-                borrowDate,
-                returnDate: null
-              });
-            }
-          );
-        }
-      );
-    });
-  });
-});
-
-app.post('/api/return', authenticateToken, (req, res) => {
-  const { keyId } = req.body;
-  const teacherId = req.user.id;
-  
-  if (!keyId) {
-    return res.status(400).json({ error: 'Key ID is required' });
-  }
-  
-  // Check if key exists and is borrowed by this teacher
-  db.get(
-    `SELECT t.id FROM transactions t 
-     JOIN keys k ON t.keyId = k.keyId 
-     WHERE t.keyId = ? AND t.teacherId = ? AND t.returnDate IS NULL`,
-    [keyId, teacherId],
-    (err, transaction) => {
-      if (err) {
-        return res.status(500).json({ error: 'Database error' });
-      }
-      
-      if (!transaction) {
-        return res.status(400).json({ error: 'You do not have this key borrowed' });
-      }
-      
-      const returnDate = new Date().toISOString();
-      
-      // Start a transaction
-      db.serialize(() => {
-        db.run('BEGIN TRANSACTION');
-        
-        // Update key status
-        db.run(
-          'UPDATE keys SET status = ? WHERE keyId = ?',
-          ['Available', keyId],
-          function(err) {
-            if (err) {
-              db.run('ROLLBACK');
-              return res.status(500).json({ error: 'Error updating key status' });
-            }
-            
-            // Update transaction record
-            db.run(
-              'UPDATE transactions SET returnDate = ? WHERE id = ?',
-              [returnDate, transaction.id],
-              function(err) {
-                if (err) {
-                  db.run('ROLLBACK');
-                  return res.status(500).json({ error: 'Error updating transaction record' });
-                }
-                
-                db.run('COMMIT');
-                res.json({
-                  id: transaction.id,
-                  teacherId,
-                  keyId,
-                  returnDate
-                });
-              }
-            );
-          }
-        );
-      });
-    }
-  );
-});
-
-// Get transactions
-app.get('/api/transactions', authenticateToken, (req, res) => {
-  const teacherId = req.user.id;
-  const isAdmin = req.user.role === 'admin';
-  
-  // Admins can see all transactions, teachers can only see their own
-  const query = isAdmin 
-    ? `SELECT t.*, u.name as teacherName 
-       FROM transactions t 
-       JOIN users u ON t.teacherId = u.id 
-       ORDER BY t.borrowDate DESC`
-    : `SELECT t.* 
-       FROM transactions t 
-       WHERE t.teacherId = ? 
-       ORDER BY t.borrowDate DESC`;
-  
-  const params = isAdmin ? [] : [teacherId];
-  
-  db.all(query, params, (err, transactions) => {
-    if (err) {
-      return res.status(500).json({ error: 'Database error' });
-    }
-    
-    res.json(transactions);
-  });
-});
-
-// Get active borrows
-app.get('/api/transactions/active', authenticateToken, (req, res) => {
-  const teacherId = req.user.id;
-  const isAdmin = req.user.role === 'admin';
-  
-  // Calculate overdue (24 hours threshold)
-  const overdueCutoff = new Date();
-  overdueCutoff.setHours(overdueCutoff.getHours() - 24);
-  const overdueCutoffStr = overdueCutoff.toISOString();
-  
-  // Admins can see all active borrows, teachers can only see their own
-  const query = isAdmin 
-    ? `SELECT t.*, u.name as teacherName, k.lab,
-         CASE WHEN t.borrowDate < ? THEN 1 ELSE 0 END as isOverdue
-       FROM transactions t 
-       JOIN users u ON t.teacherId = u.id 
-       JOIN keys k ON t.keyId = k.keyId
-       WHERE t.returnDate IS NULL 
-       ORDER BY t.borrowDate ASC`
-    : `SELECT t.*, k.lab,
-         CASE WHEN t.borrowDate < ? THEN 1 ELSE 0 END as isOverdue
-       FROM transactions t 
-       JOIN keys k ON t.keyId = k.keyId
-       WHERE t.teacherId = ? AND t.returnDate IS NULL 
-       ORDER BY t.borrowDate ASC`;
-  
-  const params = isAdmin ? [overdueCutoffStr] : [overdueCutoffStr, teacherId];
-  
-  db.all(query, params, (err, borrows) => {
-    if (err) {
-      return res.status(500).json({ error: 'Database error' });
-    }
-    
-    res.json(borrows);
-  });
-});
-
-// Dashboard data (admin only)
-app.get('/api/dashboard', authenticateToken, authorizeAdmin, (req, res) => {
-  // Calculate overdue (24 hours threshold)
-  const overdueCutoff = new Date();
-  overdueCutoff.setHours(overdueCutoff.getHours() - 24);
-  const overdueCutoffStr = overdueCutoff.toISOString();
-  
-  db.serialize(() => {
-    // Get total counts
-    db.get(
-      `SELECT 
-         (SELECT COUNT(*) FROM keys) as totalKeys,
-         (SELECT COUNT(*) FROM keys WHERE status = 'Available') as availableKeys,
-         (SELECT COUNT(*) FROM keys WHERE status = 'Borrowed') as borrowedKeys,
-         (SELECT COUNT(*) FROM users WHERE role = 'teacher') as totalTeachers,
-         (SELECT COUNT(*) FROM transactions WHERE returnDate IS NULL AND borrowDate < ?) as overdueKeys`,
-      [overdueCutoffStr],
-      (err, stats) => {
-        if (err) {
-          return res.status(500).json({ error: 'Database error' });
-        }
-        
-        // Get overdue transactions
-        db.all(
-          `SELECT t.*, u.name as teacherName, k.lab
-           FROM transactions t 
-           JOIN users u ON t.teacherId = u.id 
-           JOIN keys k ON t.keyId = k.keyId
-           WHERE t.returnDate IS NULL AND t.borrowDate < ?
-           ORDER BY t.borrowDate ASC`,
-          [overdueCutoffStr],
-          (err, overdueTransactions) => {
-            if (err) {
-              return res.status(500).json({ error: 'Database error' });
-            }
-            
-            res.json({
-              stats,
-              overdueTransactions
-            });
-          }
-        );
-      }
-    );
-  });
-});
-
-// Test endpoint to check admin user
-app.get('/api/check-admin', (req, res) => {
-  db.get('SELECT id, name, email, role FROM users WHERE id = ?', ['admin'], (err, user) => {
-    if (err) {
-      return res.status(500).json({ error: 'Database error', details: err.message });
-    }
-    
-    if (!user) {
-      return res.status(404).json({ error: 'Admin user not found' });
-    }
-    
-    res.json({ 
-      message: 'Admin user exists', 
+    res.json({
+      token,
       user: {
         id: user.id,
         name: user.name,
@@ -649,7 +288,489 @@ app.get('/api/check-admin', (req, res) => {
         role: user.role
       }
     });
-  });
+  } catch (error) {
+    console.error('Unexpected error during login:', error);
+    res.status(500).json({ 
+      error: 'Server error during login process', 
+      details: error.message 
+    });
+  }
+});
+
+// Get current user info
+app.get('/api/me', authenticateToken, async (req, res) => {
+  try {
+    const { data: user, error } = await supabase
+      .from('users')
+      .select('id, name, email, role')
+      .eq('id', req.user.id)
+      .single();
+    
+    if (error || !user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    res.json(user);
+  } catch (error) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Teacher routes
+app.get('/api/teachers', authenticateToken, async (req, res) => {
+  try {
+    const { data: teachers, error } = await supabase
+      .from('users')
+      .select('id, name, email')
+      .eq('role', 'teacher');
+    
+    if (error) {
+      return res.status(500).json({ error: 'Database error' });
+    }
+    res.json(teachers);
+  } catch (error) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+app.post('/api/teachers', authenticateToken, authorizeAdmin, async (req, res) => {
+  const { id, name, email, password } = req.body;
+  
+  if (!id || !name || !password) {
+    return res.status(400).json({ error: 'ID, name, and password are required' });
+  }
+  
+  try {
+    const { data: existingTeacher, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('id', id);
+    
+    if (error || existingTeacher.length > 0) {
+      return res.status(400).json({ error: 'Teacher ID already exists' });
+    }
+    
+    const hashedPassword = await bcrypt.hash(password, 10);
+    
+    const { data: teacher, error: teacherError } = await supabase
+      .from('users')
+      .insert([
+        { id, name, email, password: hashedPassword, role: 'teacher' }
+      ])
+      .select('*');
+    
+    if (teacherError) {
+      return res.status(500).json({ error: 'Error creating teacher' });
+    }
+    
+    res.status(201).json({
+      id: teacher[0].id,
+      name: teacher[0].name,
+      email: teacher[0].email
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+app.put('/api/teachers/:id', authenticateToken, authorizeAdmin, async (req, res) => {
+  const { name, email } = req.body;
+  const { id } = req.params;
+  
+  if (!name) {
+    return res.status(400).json({ error: 'Name is required' });
+  }
+  
+  try {
+    const { data: updatedTeacher, error } = await supabase
+      .from('users')
+      .update({ name, email })
+      .eq('id', id)
+      .eq('role', 'teacher')
+      .select('*');
+    
+    if (error || updatedTeacher.length === 0) {
+      return res.status(404).json({ error: 'Teacher not found' });
+    }
+    
+    res.json({
+      id: updatedTeacher[0].id,
+      name: updatedTeacher[0].name,
+      email: updatedTeacher[0].email
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+app.delete('/api/teachers/:id', authenticateToken, authorizeAdmin, async (req, res) => {
+  const { id } = req.params;
+  
+  try {
+    const { data: activeBorrows, error } = await supabase
+      .from('transactions')
+      .select('*')
+      .eq('teacherId', id)
+      .eq('returnDate', null);
+    
+    if (error || activeBorrows.length > 0) {
+      return res.status(400).json({ error: 'Cannot delete teacher with active borrows' });
+    }
+    
+    const { data: deletedTeacher, error: deleteError } = await supabase
+      .from('users')
+      .delete()
+      .eq('id', id)
+      .eq('role', 'teacher');
+    
+    if (deleteError || deletedTeacher.length === 0) {
+      return res.status(404).json({ error: 'Teacher not found' });
+    }
+    
+    res.json({ message: 'Teacher deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Key routes
+app.get('/api/keys', authenticateToken, async (req, res) => {
+  console.log('GET /api/keys accessed by user:', req.user.id);
+  try {
+    const { data: keys, error } = await supabase
+      .from('keys')
+      .select('keyId, lab, status');
+    
+    if (error) {
+      console.error('Error fetching keys:', error);
+      return res.status(500).json({ error: 'Database error', details: error.message });
+    }
+    console.log(`Successfully fetched ${keys.length} keys`);
+    res.json(keys);
+  } catch (error) {
+    console.error('Server error in /api/keys:', error);
+    res.status(500).json({ error: 'Server error', details: error.message });
+  }
+});
+
+app.post('/api/keys', authenticateToken, authorizeAdmin, async (req, res) => {
+  const { keyId, lab } = req.body;
+  console.log('POST /api/keys with data:', req.body);
+  
+  if (!keyId || !lab) {
+    console.log('Validation error: Missing keyId or lab name');
+    return res.status(400).json({ error: 'Key ID and lab name are required' });
+  }
+  
+  try {
+    // Check if key exists
+    console.log('Checking if key exists with ID:', keyId);
+    const { data: existingKey, error: checkError } = await supabase
+      .from('keys')
+      .select('*')
+      .eq('keyId', keyId);
+    
+    if (checkError) {
+      console.error('Error checking existing key:', checkError);
+      return res.status(500).json({ error: 'Database error', details: checkError.message });
+    }
+    
+    if (existingKey && existingKey.length > 0) {
+      console.log('Key already exists:', existingKey[0]);
+      return res.status(400).json({ error: 'Key ID already exists' });
+    }
+    
+    // Insert new key
+    console.log('Inserting new key with ID:', keyId, 'and lab:', lab);
+    const { data: newKey, error: insertError } = await supabase
+      .from('keys')
+      .insert([
+        { keyId, lab, status: 'Available' }
+      ])
+      .select('*');
+    
+    if (insertError) {
+      console.error('Error inserting key:', insertError);
+      return res.status(500).json({ error: 'Error adding key', details: insertError.message });
+    }
+    
+    if (!newKey || newKey.length === 0) {
+      console.error('No key was created in the database');
+      return res.status(500).json({ error: 'Key was not created' });
+    }
+    
+    console.log('Successfully created key:', newKey[0]);
+    res.status(201).json({
+      keyId: newKey[0].keyId,
+      lab: newKey[0].lab,
+      status: newKey[0].status
+    });
+  } catch (error) {
+    console.error('Unexpected error in POST /api/keys:', error);
+    res.status(500).json({ error: 'Server error', details: error.message });
+  }
+});
+
+app.delete('/api/keys/:keyId', authenticateToken, authorizeAdmin, async (req, res) => {
+  const { keyId } = req.params;
+  
+  try {
+    const { data: key, error } = await supabase
+      .from('keys')
+      .select('*')
+      .eq('keyId', keyId);
+    
+    if (error || key.length === 0) {
+      return res.status(404).json({ error: 'Key not found' });
+    }
+    
+    if (key[0].status === 'Borrowed') {
+      return res.status(400).json({ error: 'Cannot delete a borrowed key' });
+    }
+    
+    const { data: deletedKey, error: deleteError } = await supabase
+      .from('keys')
+      .delete()
+      .eq('keyId', keyId);
+    
+    if (deleteError || deletedKey.length === 0) {
+      return res.status(500).json({ error: 'Error deleting key' });
+    }
+    
+    res.json({ message: 'Key deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Borrow/Return routes
+app.post('/api/borrow', authenticateToken, async (req, res) => {
+  const { keyId } = req.body;
+  const teacherId = req.user.id;
+  
+  if (!keyId) {
+    return res.status(400).json({ error: 'Key ID is required' });
+  }
+  
+  try {
+    const { data: key, error } = await supabase
+      .from('keys')
+      .select('*')
+      .eq('keyId', keyId);
+    
+    if (error || key.length === 0) {
+      return res.status(404).json({ error: 'Key not found' });
+    }
+    
+    if (key[0].status !== 'Available') {
+      return res.status(400).json({ error: 'Key is not available' });
+    }
+    
+    const { data: transaction, error: transactionError } = await supabase
+      .from('transactions')
+      .insert([
+        { teacherId, keyId, borrowDate: new Date().toISOString() }
+      ])
+      .select('*');
+    
+    if (transactionError) {
+      return res.status(500).json({ error: 'Error creating transaction record' });
+    }
+    
+    const { data: updatedKey, error: updateError } = await supabase
+      .from('keys')
+      .update({ status: 'Borrowed' })
+      .eq('keyId', keyId);
+    
+    if (updateError || updatedKey.length === 0) {
+      return res.status(500).json({ error: 'Error updating key status' });
+    }
+    
+    res.status(201).json({
+      id: transaction[0].id,
+      teacherId,
+      keyId,
+      borrowDate: transaction[0].borrowDate,
+      returnDate: null
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+app.post('/api/return', authenticateToken, async (req, res) => {
+  const { keyId } = req.body;
+  const teacherId = req.user.id;
+  
+  if (!keyId) {
+    return res.status(400).json({ error: 'Key ID is required' });
+  }
+  
+  try {
+    const { data: transaction, error } = await supabase
+      .from('transactions')
+      .select('*')
+      .eq('keyId', keyId)
+      .eq('teacherId', teacherId)
+      .eq('returnDate', null);
+    
+    if (error || transaction.length === 0) {
+      return res.status(400).json({ error: 'You do not have this key borrowed' });
+    }
+    
+    const { data: updatedTransaction, error: updateError } = await supabase
+      .from('transactions')
+      .update({ returnDate: new Date().toISOString() })
+      .eq('id', transaction[0].id);
+    
+    if (updateError || updatedTransaction.length === 0) {
+      return res.status(500).json({ error: 'Error updating transaction record' });
+    }
+    
+    const { data: updatedKey, error: keyUpdateError } = await supabase
+      .from('keys')
+      .update({ status: 'Available' })
+      .eq('keyId', keyId);
+    
+    if (keyUpdateError || updatedKey.length === 0) {
+      return res.status(500).json({ error: 'Error updating key status' });
+    }
+    
+    res.json({
+      id: updatedTransaction[0].id,
+      teacherId,
+      keyId,
+      returnDate: updatedTransaction[0].returnDate
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Get transactions
+app.get('/api/transactions', authenticateToken, async (req, res) => {
+  const teacherId = req.user.id;
+  const isAdmin = req.user.role === 'admin';
+  console.log('GET /api/transactions accessed by user:', teacherId, 'isAdmin:', isAdmin);
+  
+  try {
+    console.log('Fetching transactions from Supabase...');
+    let query = supabase.from('transactions').select('*');
+    
+    if (!isAdmin) {
+      // If not admin, only show their own transactions
+      query = query.eq('teacherId', teacherId);
+    }
+    
+    query = query.order('borrowDate', { ascending: false });
+    
+    const { data: transactions, error } = await query;
+    
+    if (error) {
+      console.error('Error fetching transactions:', error);
+      return res.status(500).json({ error: 'Database error', details: error.message });
+    }
+    
+    console.log(`Successfully fetched ${transactions.length} transactions`);
+    res.json(transactions);
+  } catch (error) {
+    console.error('Server error in /api/transactions:', error);
+    res.status(500).json({ error: 'Server error', details: error.message });
+  }
+});
+
+// Get active borrows
+app.get('/api/transactions/active', authenticateToken, async (req, res) => {
+  const teacherId = req.user.id;
+  const isAdmin = req.user.role === 'admin';
+  
+  try {
+    const overdueCutoff = new Date();
+    overdueCutoff.setHours(overdueCutoff.getHours() - 24);
+    const overdueCutoffStr = overdueCutoff.toISOString();
+    
+    const query = isAdmin 
+      ? `SELECT t.*, u.name as teacherName, k.lab,
+           CASE WHEN t.borrowDate < ? THEN 1 ELSE 0 END as isOverdue
+         FROM transactions t 
+         JOIN users u ON t.teacherId = u.id 
+         JOIN keys k ON t.keyId = k.keyId
+         WHERE t.returnDate IS NULL 
+         ORDER BY t.borrowDate ASC`
+      : `SELECT t.*, k.lab,
+           CASE WHEN t.borrowDate < ? THEN 1 ELSE 0 END as isOverdue
+         FROM transactions t 
+         JOIN keys k ON t.keyId = k.keyId
+         WHERE t.teacherId = ? AND t.returnDate IS NULL 
+         ORDER BY t.borrowDate ASC`;
+    
+    const params = isAdmin ? [overdueCutoffStr] : [overdueCutoffStr, teacherId];
+    
+    const { data: borrows, error } = await supabase
+      .from('transactions')
+      .select('*')
+      .eq('teacherId', isAdmin ? null : teacherId)
+      .eq('returnDate', null)
+      .order('borrowDate', { ascending: true });
+    
+    if (error) {
+      return res.status(500).json({ error: 'Database error' });
+    }
+    
+    res.json(borrows);
+  } catch (error) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Dashboard data (admin only)
+app.get('/api/dashboard', authenticateToken, authorizeAdmin, async (req, res) => {
+  console.log('GET /api/dashboard accessed by admin:', req.user.id);
+  try {
+    // Use a simplified approach for dashboard stats
+    const stats = {
+      totalKeys: 0,
+      availableKeys: 0,
+      borrowedKeys: 0,
+      totalTeachers: 0,
+      overdueKeys: 0
+    };
+    
+    // Just return basic stats without complex queries
+    res.json({
+      stats,
+      overdueTransactions: []
+    });
+  } catch (error) {
+    console.error('Server error in /api/dashboard:', error);
+    res.status(500).json({ error: 'Server error', details: error.message });
+  }
+});
+
+// Test endpoint to check admin user
+app.get('/api/check-admin', async (req, res) => {
+  try {
+    const { data: admin, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('id', 'admin');
+    
+    if (error || !admin.length) {
+      return res.status(404).json({ error: 'Admin user not found' });
+    }
+    
+    res.json({ 
+      message: 'Admin user exists', 
+      user: {
+        id: admin[0].id,
+        name: admin[0].name,
+        email: admin[0].email,
+        role: admin[0].role
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Server error', details: error.message });
+  }
 });
 
 // Add a simple test route
@@ -658,7 +779,283 @@ app.get('/api/test', (req, res) => {
   res.json({ message: 'Backend server is running!' });
 });
 
-// Start the server
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-}); 
+// Debug route for Supabase connection
+app.get('/api/debug', (req, res) => {
+  try {
+    const envInfo = {
+      supabaseUrlExists: !!process.env.SUPABASE_URL,
+      supabaseUrlPrefix: process.env.SUPABASE_URL ? process.env.SUPABASE_URL.substring(0, 10) + '...' : null,
+      supabaseKeyExists: !!process.env.SUPABASE_ANON_KEY,
+      supabaseKeyPrefix: process.env.SUPABASE_ANON_KEY ? process.env.SUPABASE_ANON_KEY.substring(0, 10) + '...' : null,
+      jwtSecretExists: !!process.env.JWT_SECRET,
+      nodeEnv: process.env.NODE_ENV
+    };
+    
+    res.json({ 
+      message: 'Environment variables check', 
+      environment: envInfo 
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Error checking environment: ' + error.message });
+  }
+});
+
+// Supabase connection test route
+app.get('/api/test-supabase', async (req, res) => {
+  try {
+    // Try to read from the users table
+    const { data, error } = await supabase
+      .from('users')
+      .select('*')
+      .limit(1);
+    
+    if (error) {
+      return res.status(500).json({ 
+        message: 'Supabase connection error', 
+        error: error.message
+      });
+    }
+    
+    res.json({ 
+      message: 'Supabase connection successful', 
+      userCount: data.length
+    });
+  } catch (error) {
+    res.status(500).json({ 
+      message: 'Server error when testing Supabase', 
+      error: error.message 
+    });
+  }
+});
+
+// Route to create admin user if it doesn't exist
+app.get('/api/init-admin', async (req, res) => {
+  try {
+    // Check if admin exists
+    const { data, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('id', 'admin');
+    
+    if (error) {
+      return res.status(500).json({ error: error.message });
+    }
+    
+    // If admin exists
+    if (data && data.length > 0) {
+      return res.json({ 
+        message: 'Admin user exists',
+        admin: {
+          id: data[0].id,
+          name: data[0].name
+        }
+      });
+    }
+    
+    // No admin found, create one
+    const hashedPassword = await bcrypt.hash('admin123', 10);
+    
+    const { data: newAdmin, error: createError } = await supabase
+      .from('users')
+      .insert([
+        { 
+          id: 'admin', 
+          name: 'System Admin', 
+          email: 'admin@school.org', 
+          password: hashedPassword, 
+          role: 'admin' 
+        }
+      ]);
+    
+    if (createError) {
+      return res.status(500).json({ error: createError.message });
+    }
+    
+    return res.json({ message: 'Admin user created successfully' });
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+// Special debug login route
+app.post('/api/login-debug', async (req, res) => {
+  // Set CORS headers directly
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+  
+  const { id, password } = req.body;
+  
+  try {
+    // Return detailed info about the request
+    const responseData = {
+      message: 'Login debug info',
+      requestReceived: true,
+      requestBody: req.body,
+      headers: req.headers,
+      authStatus: 'checking credentials...'
+    };
+    
+    // Check if user exists
+    const { data: user, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('id', id)
+      .single();
+    
+    if (error) {
+      responseData.authStatus = 'database error';
+      responseData.error = error.message;
+      return res.status(200).json(responseData);
+    }
+    
+    if (!user) {
+      responseData.authStatus = 'user not found';
+      return res.status(200).json(responseData);
+    }
+    
+    responseData.authStatus = 'user found, checking password';
+    
+    // Compare password
+    const validPassword = await bcrypt.compare(password, user.password);
+    if (!validPassword) {
+      responseData.authStatus = 'password mismatch';
+      return res.status(200).json(responseData);
+    }
+    
+    responseData.authStatus = 'login successful';
+    responseData.userData = {
+      id: user.id,
+      name: user.name,
+      role: user.role
+    };
+    
+    return res.status(200).json(responseData);
+  } catch (error) {
+    return res.status(200).json({
+      message: 'Login debug info',
+      requestReceived: true,
+      error: error.message,
+      stack: error.stack
+    });
+  }
+});
+
+// Reset admin password route
+app.get('/api/reset-admin-password', async (req, res) => {
+  try {
+    // Hash a new password
+    const hashedPassword = await bcrypt.hash('admin123', 10);
+    
+    // Update the admin user
+    const { data, error } = await supabase
+      .from('users')
+      .update({ password: hashedPassword })
+      .eq('id', 'admin');
+    
+    if (error) {
+      return res.status(500).json({ 
+        message: 'Failed to reset admin password', 
+        error: error.message 
+      });
+    }
+    
+    return res.json({ 
+      message: 'Admin password reset successfully to "admin123"' 
+    });
+  } catch (error) {
+    return res.status(500).json({ 
+      message: 'Server error', 
+      error: error.message 
+    });
+  }
+});
+
+// Add a detailed debug endpoint
+app.get('/api/debug-tables', async (req, res) => {
+  try {
+    const results = {};
+    
+    // Check users table
+    console.log('Checking users table...');
+    const { data: users, error: usersError } = await supabase
+      .from('users')
+      .select('*', { count: 'exact' });
+    
+    results.users = {
+      exists: !usersError,
+      count: users ? users.length : 0,
+      error: usersError ? usersError.message : null,
+      sample: users && users.length > 0 ? { 
+        id: users[0].id,
+        name: users[0].name,
+        role: users[0].role
+      } : null
+    };
+    
+    // Check keys table
+    console.log('Checking keys table...');
+    const { data: keys, error: keysError } = await supabase
+      .from('keys')
+      .select('*', { count: 'exact' });
+    
+    results.keys = {
+      exists: !keysError,
+      count: keys ? keys.length : 0,
+      error: keysError ? keysError.message : null,
+      sample: keys && keys.length > 0 ? { 
+        keyId: keys[0].keyId,
+        lab: keys[0].lab,
+        status: keys[0].status
+      } : null
+    };
+    
+    // Check transactions table
+    console.log('Checking transactions table...');
+    const { data: transactions, error: transactionsError } = await supabase
+      .from('transactions')
+      .select('*', { count: 'exact' });
+    
+    results.transactions = {
+      exists: !transactionsError,
+      count: transactions ? transactions.length : 0,
+      error: transactionsError ? transactionsError.message : null,
+      sample: transactions && transactions.length > 0 ? { 
+        id: transactions[0].id,
+        teacherId: transactions[0].teacherId,
+        keyId: transactions[0].keyId
+      } : null
+    };
+    
+    // Check environment variables
+    results.environment = {
+      supabaseUrlExists: !!process.env.SUPABASE_URL,
+      supabaseKeyExists: !!process.env.SUPABASE_ANON_KEY,
+      jwtSecretExists: !!process.env.JWT_SECRET,
+      nodeEnv: process.env.NODE_ENV
+    };
+    
+    res.json({
+      message: 'Database debug information',
+      timestamp: new Date().toISOString(),
+      results
+    });
+  } catch (error) {
+    console.error('Error in debug endpoint:', error);
+    res.status(500).json({ 
+      error: 'Server error during debug', 
+      message: error.message,
+      stack: error.stack
+    });
+  }
+});
+
+// Only start the server if this file is run directly
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`Server is running on port ${PORT}`);
+  });
+}
+
+// Export the app for Vercel
+module.exports = app; 
