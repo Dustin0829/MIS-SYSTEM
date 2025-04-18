@@ -1,11 +1,19 @@
 import axios from 'axios';
 
+// Define the API base URL based on environment
+const apiBaseUrl = process.env.NODE_ENV === 'production' 
+  ? 'https://sti-mis.vercel.app/api'  // Production URL (adjust to your actual production URL)
+  : '/api';  // Local development URL
+
+console.log('API Base URL:', apiBaseUrl);
+
 const api = axios.create({
-  baseURL: '/api',
+  baseURL: apiBaseUrl,
   headers: {
     'Content-Type': 'application/json'
   },
-  withCredentials: false
+  withCredentials: false,
+  timeout: 15000 // 15-second timeout to avoid hanging requests
 });
 
 // Add token to requests if available
@@ -14,6 +22,7 @@ api.interceptors.request.use(config => {
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
+  console.log(`Making ${config.method.toUpperCase()} request to: ${config.baseURL}${config.url}`);
   return config;
 });
 
@@ -31,6 +40,15 @@ api.interceptors.response.use(
         errorMessage = error.response.data.error || JSON.stringify(error.response.data);
       } else if (typeof error.response.data === 'string') {
         errorMessage = error.response.data;
+      }
+    } else if (error.request) {
+      // Request was made but no response received
+      console.log('No response received:', error.request);
+      errorMessage = 'Server did not respond. Please check your connection.';
+      
+      // Check if this is a timeout
+      if (error.code === 'ECONNABORTED') {
+        errorMessage = 'Request timed out. Please try again.';
       }
     }
     
@@ -96,14 +114,40 @@ export const deleteTeacher = async (id) => {
 
 export const addTeacher = createTeacher; // Alias for createTeacher
 
+// Helper function to normalize keys/transactions data
+const normalizeKeyData = (data) => {
+  if (!data) return data;
+  
+  // If it's an array, map each item
+  if (Array.isArray(data)) {
+    return data.map(item => normalizeKeyData(item));
+  }
+  
+  // If it's an object, normalize the properties
+  if (typeof data === 'object') {
+    const normalized = { ...data };
+    
+    // Handle key properties
+    if (data.keyid !== undefined && data.keyId === undefined) {
+      normalized.keyId = data.keyid;
+    }
+    
+    return normalized;
+  }
+  
+  return data;
+};
+
 // Key management
 export const getKeys = async () => {
   try {
+    console.log('Fetching keys...');
     const response = await api.get('/keys');
-    return response.data;
+    console.log('Keys response:', response.data);
+    return normalizeKeyData(response.data);
   } catch (error) {
     console.error('Error fetching keys:', error);
-    throw error;
+    throw error; // Already formatted by the interceptor
   }
 };
 
@@ -132,41 +176,56 @@ export const deleteKey = async (keyId) => {
 };
 
 // Borrow and return operations
-export const borrowKey = async (keyId) => {
+export const borrowKey = async (keyData) => {
   try {
-    const response = await api.post('/borrow', { keyId });
-    return response.data;
+    console.log('Initiating borrowKey API call with data:', keyData);
+    const response = await api.post('/borrow', keyData);
+    console.log('borrowKey API response:', response.data);
+    return normalizeKeyData(response.data);
   } catch (error) {
-    throw error.response ? error.response.data : { error: 'Network error' };
+    console.error('borrowKey API error:', error);
+    console.error('Error details:', error.response?.data || error.message || error);
+    throw error; // Already formatted by the interceptor
   }
 };
 
 export const returnKey = async (keyId) => {
   try {
+    console.log('Initiating returnKey API call with keyId:', keyId);
     const response = await api.post('/return', { keyId });
-    return response.data;
+    console.log('returnKey API response:', response.data);
+    return normalizeKeyData(response.data);
   } catch (error) {
-    throw error.response ? error.response.data : { error: 'Network error' };
+    console.error('returnKey API error:', error);
+    console.error('Error details:', error.response?.data || error.message || error);
+    throw error; // Already formatted by the interceptor
   }
 };
 
 // Transaction management
 export const getTransactions = async () => {
   try {
+    console.log('Initiating getTransactions API call');
     const response = await api.get('/transactions');
-    return response.data;
+    console.log('getTransactions API response:', response.data);
+    return normalizeKeyData(response.data);
   } catch (error) {
-    console.error('Error fetching transactions:', error);
-    throw error;
+    console.error('getTransactions API error:', error);
+    console.error('Error details:', error.response?.data || error.message || error);
+    throw error; // Already formatted by the interceptor
   }
 };
 
 export const getActiveTransactions = async () => {
   try {
+    console.log('Initiating getActiveTransactions API call');
     const response = await api.get('/transactions/active');
-    return response.data;
+    console.log('getActiveTransactions API response:', response.data);
+    return normalizeKeyData(response.data);
   } catch (error) {
-    throw error.response ? error.response.data : { error: 'Network error' };
+    console.error('getActiveTransactions API error:', error);
+    console.error('Error details:', error.response?.data || error.message || error);
+    throw error; // Already formatted by the interceptor
   }
 };
 
@@ -179,7 +238,20 @@ export const getDashboardData = async () => {
     return response.data;
   } catch (error) {
     console.error('Error fetching dashboard data:', error);
-    throw error;
+    throw error; // Already formatted by the interceptor
+  }
+};
+
+// NEW - Added getBorrowedKeys function
+export const getBorrowedKeys = async () => {
+  try {
+    console.log('Fetching borrowed keys...');
+    const response = await api.get('/transactions/active');
+    console.log('Borrowed keys response:', response.data);
+    return normalizeKeyData(response.data);
+  } catch (error) {
+    console.error('Error fetching borrowed keys:', error);
+    throw error; // Already formatted by the interceptor
   }
 };
 
