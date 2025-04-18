@@ -194,6 +194,11 @@ app.get('/test-login', (req, res) => {
 
 // Authentication middleware
 const authenticateToken = (req, res, next) => {
+  // Skip authentication for login routes
+  if (req.path === '/api/login' || req.path === '/api/login-debug' || req.path === '/') {
+    return next();
+  }
+  
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
   
