@@ -159,8 +159,7 @@ export const createKey = async (keyData) => {
     return response.data;
   } catch (error) {
     console.error('Error creating key:', error);
-    const errorMsg = error.error || 'Network error';
-    throw { error: errorMsg };
+    throw error; // Already formatted by the interceptor
   }
 };
 
@@ -170,8 +169,8 @@ export const deleteKey = async (keyId) => {
     return response.data;
   } catch (error) {
     // Properly format the error message
-    const errorMessage = error.response?.data?.error || error.message || 'Unknown error occurred';
-    throw errorMessage;
+    console.error('Error deleting key:', error);
+    throw error; // Already formatted by the interceptor
   }
 };
 
@@ -242,7 +241,7 @@ export const getDashboardData = async () => {
   }
 };
 
-// NEW - Added getBorrowedKeys function
+// Add getBorrowedKeys function 
 export const getBorrowedKeys = async () => {
   try {
     console.log('Fetching borrowed keys...');
