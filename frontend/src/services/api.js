@@ -2,7 +2,7 @@ import axios from 'axios';
 
 // Define the API base URL based on environment
 const apiBaseUrl = process.env.NODE_ENV === 'production' 
-  ? 'https://sti-mis.vercel.app/api'  // Production URL (adjust to your actual production URL)
+  ? 'https://sti-mis.vercel.app/api'  // Production URL
   : '/api';  // Local development URL
 
 console.log('API Base URL:', apiBaseUrl);
@@ -168,7 +168,6 @@ export const deleteKey = async (keyId) => {
     const response = await api.delete(`/keys/${keyId}`);
     return response.data;
   } catch (error) {
-    // Properly format the error message
     console.error('Error deleting key:', error);
     throw error; // Already formatted by the interceptor
   }
@@ -241,7 +240,20 @@ export const getDashboardData = async () => {
   }
 };
 
-// Add getBorrowedKeys function 
+// For borrowed keys
+export const getAvailableKeys = async () => {
+  try {
+    console.log('Fetching available keys...');
+    const response = await api.get('/keys');
+    console.log('Available keys response:', response.data);
+    return normalizeKeyData(response.data);
+  } catch (error) {
+    console.error('Error fetching available keys:', error);
+    throw error; // Already formatted by the interceptor
+  }
+};
+
+// For borrowed keys
 export const getBorrowedKeys = async () => {
   try {
     console.log('Fetching borrowed keys...');

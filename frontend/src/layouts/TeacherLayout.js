@@ -59,7 +59,7 @@ const TeacherLayout = ({ user, onLogout }) => {
         <Outlet />
       </main>
       <footer className="container-fluid text-center py-3 footer mt-5">
-        <small>&copy; Franc {new Date().getFullYear()} STI Lab Key Management System Franc</small>
+        <small>&copy; Franc {new Date().getFullYear()} STI Lab Key Management System</small>
       </footer>
     </div>
   );

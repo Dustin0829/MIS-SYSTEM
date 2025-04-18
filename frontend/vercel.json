@@ -2,7 +2,7 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://sti-g11gtmlek-franc-egos-projects.vercel.app/api/:path*"
+      "destination": "https://sti-7c3ivo780-franc-egos-projects.vercel.app/api/:path*"
     }
   ],
   "headers": [

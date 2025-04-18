@@ -11,9 +11,11 @@ const History = () => {
       try {
         setLoading(true);
         const data = await getTransactions();
+        console.log('Transaction history data:', data);
         setTransactions(data);
       } catch (error) {
-        setError('Failed to load transaction history: ' + error);
+        console.error('Error fetching transaction history:', error);
+        setError('Failed to load transaction history: ' + (error.error || error.message || JSON.stringify(error)));
       } finally {
         setLoading(false);
       }
@@ -57,6 +59,7 @@ const History = () => {
                 <thead>
                   <tr>
                     <th>Key ID</th>
+                    <th>Lab</th>
                     <th>Borrowed Date</th>
                     <th>Returned Date</th>
                     <th>Status</th>
@@ -88,6 +91,7 @@ const History = () => {
                     return (
                       <tr key={transaction.id}>
                         <td>{transaction.keyId}</td>
+                        <td>{transaction.lab || 'Unknown'}</td>
                         <td>{borrowDate.toLocaleString()}</td>
                         <td>{returnDate ? returnDate.toLocaleString() : '-'}</td>
                         <td>

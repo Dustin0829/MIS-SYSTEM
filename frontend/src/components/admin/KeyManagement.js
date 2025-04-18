@@ -17,7 +17,12 @@ const KeyManagement = () => {
     try {
       setLoading(true);
       const data = await getKeys();
-      setKeys(data);
+      const mappedKeys = data.map(key => ({
+        keyId: key.keyid || key.keyId,
+        lab: key.lab,
+        status: key.status
+      }));
+      setKeys(mappedKeys);
     } catch (error) {
       setError('Failed to load keys: ' + error);
       toast.error('Failed to load keys');

@@ -407,29 +407,61 @@ app.delete('/api/teachers/:id', authenticateToken, authorizeAdmin, async (req, r
   const { id } = req.params;
   
   try {
+    console.log(`Attempting to delete teacher with ID: ${id}`);
+    
+    // Check if teacher exists
+    const { data: teacher, error: teacherError } = await supabase
+      .from('users')
+      .select('id, name')
+      .eq('id', id)
+      .eq('role', 'teacher');
+    
+    if (teacherError) {
+      console.error('Error checking teacher existence:', teacherError);
+      return res.status(500).json({ error: 'Database error', details: teacherError.message });
+    }
+    
+    if (!teacher || teacher.length === 0) {
+      console.log(`Teacher with ID ${id} not found`);
+      return res.status(404).json({ error: 'Teacher not found' });
+    }
+    
+    // Check if teacher has active borrows
     const { data: activeBorrows, error } = await supabase
       .from('transactions')
       .select('*')
       .eq('teacherId', id)
       .eq('returnDate', null);
     
-    if (error || activeBorrows.length > 0) {
+    if (error) {
+      console.error('Error checking active borrows:', error);
+      return res.status(500).json({ error: 'Database error checking active borrows', details: error.message });
+    }
+    
+    if (activeBorrows && activeBorrows.length > 0) {
+      console.log(`Cannot delete teacher with ID ${id} - has ${activeBorrows.length} active borrows`);
       return res.status(400).json({ error: 'Cannot delete teacher with active borrows' });
     }
     
+    // Delete the teacher
+    console.log(`Deleting teacher with ID: ${id}`);
     const { data: deletedTeacher, error: deleteError } = await supabase
       .from('users')
       .delete()
       .eq('id', id)
-      .eq('role', 'teacher');
+      .eq('role', 'teacher')
+      .select();
     
-    if (deleteError || deletedTeacher.length === 0) {
-      return res.status(404).json({ error: 'Teacher not found' });
+    if (deleteError) {
+      console.error('Error deleting teacher:', deleteError);
+      return res.status(500).json({ error: 'Error deleting teacher', details: deleteError.message });
     }
     
+    console.log(`Successfully deleted teacher: ${id}`);
     res.json({ message: 'Teacher deleted successfully' });
   } catch (error) {
-    res.status(500).json({ error: 'Server error' });
+    console.error('Unexpected error during teacher deletion:', error);
+    res.status(500).json({ error: 'Server error', details: error.message });
   }
 });
 
@@ -439,7 +471,7 @@ app.get('/api/keys', authenticateToken, async (req, res) => {
   try {
     const { data: keys, error } = await supabase
       .from('keys')
-      .select('keyId, lab, status');
+      .select('keyid, lab, status');
     
     if (error) {
       console.error('Error fetching keys:', error);
@@ -468,7 +500,7 @@ app.post('/api/keys', authenticateToken, authorizeAdmin, async (req, res) => {
     const { data: existingKey, error: checkError } = await supabase
       .from('keys')
       .select('*')
-      .eq('keyId', keyId);
+      .eq('keyid', keyId);
     
     if (checkError) {
       console.error('Error checking existing key:', checkError);
@@ -485,7 +517,7 @@ app.post('/api/keys', authenticateToken, authorizeAdmin, async (req, res) => {
     const { data: newKey, error: insertError } = await supabase
       .from('keys')
       .insert([
-        { keyId, lab, status: 'Available' }
+        { keyid: keyId, lab, status: 'Available' }
       ])
       .select('*');
     
@@ -501,7 +533,7 @@ app.post('/api/keys', authenticateToken, authorizeAdmin, async (req, res) => {
     
     console.log('Successfully created key:', newKey[0]);
     res.status(201).json({
-      keyId: newKey[0].keyId,
+      keyId: newKey[0].keyid,
       lab: newKey[0].lab,
       status: newKey[0].status
     });
@@ -515,31 +547,53 @@ app.delete('/api/keys/:keyId', authenticateToken, authorizeAdmin, async (req, re
   const { keyId } = req.params;
   
   try {
+    console.log(`Deleting key with ID: ${keyId}`);
+    
+    // First check if the key exists
     const { data: key, error } = await supabase
       .from('keys')
       .select('*')
-      .eq('keyId', keyId);
+      .eq('keyid', keyId);
     
-    if (error || key.length === 0) {
+    if (error) {
+      console.error('Error finding key to delete:', error);
+      return res.status(500).json({ error: 'Database error', details: error.message });
+    }
+    
+    if (key.length === 0) {
+      console.log(`Key with ID ${keyId} not found`);
       return res.status(404).json({ error: 'Key not found' });
     }
     
     if (key[0].status === 'Borrowed') {
+      console.log(`Cannot delete borrowed key: ${keyId}`);
       return res.status(400).json({ error: 'Cannot delete a borrowed key' });
     }
     
+    console.log(`Proceeding to delete key: ${keyId}`);
+    
+    // Delete the key
     const { data: deletedKey, error: deleteError } = await supabase
       .from('keys')
       .delete()
-      .eq('keyId', keyId);
+      .eq('keyid', keyId)
+      .select();
     
-    if (deleteError || deletedKey.length === 0) {
-      return res.status(500).json({ error: 'Error deleting key' });
+    if (deleteError) {
+      console.error('Error deleting key:', deleteError);
+      return res.status(500).json({ error: 'Error deleting key', details: deleteError.message });
     }
     
+    if (deletedKey.length === 0) {
+      console.log('No key was deleted');
+      return res.status(404).json({ error: 'Key not found or could not be deleted' });
+    }
+    
+    console.log(`Successfully deleted key: ${keyId}`);
     res.json({ message: 'Key deleted successfully' });
   } catch (error) {
-    res.status(500).json({ error: 'Server error' });
+    console.error('Unexpected error in delete key route:', error);
+    res.status(500).json({ error: 'Server error', details: error.message });
   }
 });
 
@@ -548,53 +602,119 @@ app.post('/api/borrow', authenticateToken, async (req, res) => {
   const { keyId } = req.body;
   const teacherId = req.user.id;
   
+  console.log(`Borrow request: teacherId=${teacherId}, keyId=${keyId}`);
+  
   if (!keyId) {
+    console.log('Borrow failed: Key ID is missing');
     return res.status(400).json({ error: 'Key ID is required' });
   }
   
   try {
-    const { data: key, error } = await supabase
+    // 1. Check if key exists and is available
+    console.log(`Checking key with ID: ${keyId}`);
+    const { data: key, error: keyError } = await supabase
       .from('keys')
       .select('*')
-      .eq('keyId', keyId);
+      .eq('keyid', keyId);
     
-    if (error || key.length === 0) {
+    if (keyError) {
+      console.error('Error fetching key:', keyError);
+      return res.status(500).json({ error: 'Database error', details: keyError.message });
+    }
+    
+    if (!key || key.length === 0) {
+      console.log(`Key with ID ${keyId} not found`);
       return res.status(404).json({ error: 'Key not found' });
     }
     
     if (key[0].status !== 'Available') {
+      console.log(`Key ${keyId} is not available, status: ${key[0].status}`);
       return res.status(400).json({ error: 'Key is not available' });
     }
     
+    // 2. Check if teacher already has active borrows for this key
+    console.log(`Checking if teacher ${teacherId} already has key ${keyId} borrowed`);
+    const { data: existingBorrows, error: existingError } = await supabase
+      .from('transactions')
+      .select('*')
+      .eq('teacherId', teacherId)
+      .eq('keyid', keyId)
+      .is('returnDate', null);
+    
+    if (existingError) {
+      console.error('Error checking existing borrows:', existingError);
+      return res.status(500).json({ error: 'Error checking existing borrows' });
+    }
+    
+    if (existingBorrows && existingBorrows.length > 0) {
+      console.log(`Teacher ${teacherId} already has key ${keyId} borrowed`);
+      return res.status(400).json({ error: 'You already have this key borrowed' });
+    }
+    
+    // 3. Create the transaction
+    console.log(`Creating borrow transaction for teacher=${teacherId}, key=${keyId}`);
+    const transactionData = { 
+      teacherId, 
+      keyid: keyId, 
+      borrowDate: new Date().toISOString() 
+    };
+    console.log('Transaction data:', transactionData);
+    
     const { data: transaction, error: transactionError } = await supabase
       .from('transactions')
-      .insert([
-        { teacherId, keyId, borrowDate: new Date().toISOString() }
-      ])
+      .insert([transactionData])
       .select('*');
     
     if (transactionError) {
-      return res.status(500).json({ error: 'Error creating transaction record' });
+      console.error('Error creating transaction record:', transactionError);
+      return res.status(500).json({ 
+        error: 'Error creating transaction record', 
+        details: transactionError.message 
+      });
     }
     
+    if (!transaction || transaction.length === 0) {
+      console.error('Transaction was not created');
+      return res.status(500).json({ error: 'Transaction was not created' });
+    }
+    
+    console.log('Transaction created successfully:', transaction[0]);
+    
+    // 4. Update key status
+    console.log(`Updating key ${keyId} status to Borrowed`);
     const { data: updatedKey, error: updateError } = await supabase
       .from('keys')
       .update({ status: 'Borrowed' })
-      .eq('keyId', keyId);
+      .eq('keyid', keyId)
+      .select();
     
-    if (updateError || updatedKey.length === 0) {
-      return res.status(500).json({ error: 'Error updating key status' });
+    if (updateError) {
+      console.error('Error updating key status:', updateError);
+      // Rollback transaction since key status update failed
+      await supabase
+        .from('transactions')
+        .delete()
+        .eq('id', transaction[0].id);
+      
+      return res.status(500).json({ 
+        error: 'Error updating key status', 
+        details: updateError.message 
+      });
     }
     
+    console.log('Key status updated successfully');
+    
+    // 5. Return success response
     res.status(201).json({
       id: transaction[0].id,
       teacherId,
-      keyId,
+      keyId: transaction[0].keyid,
       borrowDate: transaction[0].borrowDate,
       returnDate: null
     });
   } catch (error) {
-    res.status(500).json({ error: 'Server error' });
+    console.error('Unexpected error in borrow key:', error);
+    res.status(500).json({ error: 'Server error', details: error.message });
   }
 });
 
@@ -602,48 +722,91 @@ app.post('/api/return', authenticateToken, async (req, res) => {
   const { keyId } = req.body;
   const teacherId = req.user.id;
   
+  console.log(`Return request: teacherId=${teacherId}, keyId=${keyId}`);
+  
   if (!keyId) {
+    console.log('Return failed: Key ID is missing');
     return res.status(400).json({ error: 'Key ID is required' });
   }
   
   try {
-    const { data: transaction, error } = await supabase
+    // 1. Check if the transaction exists
+    console.log(`Checking active borrow for teacher=${teacherId}, key=${keyId}`);
+    const { data: transaction, error: transactionError } = await supabase
       .from('transactions')
       .select('*')
-      .eq('keyId', keyId)
+      .eq('keyid', keyId)
       .eq('teacherId', teacherId)
-      .eq('returnDate', null);
+      .is('returnDate', null);
     
-    if (error || transaction.length === 0) {
+    if (transactionError) {
+      console.error('Error checking transaction:', transactionError);
+      return res.status(500).json({ 
+        error: 'Database error', 
+        details: transactionError.message 
+      });
+    }
+    
+    if (!transaction || transaction.length === 0) {
+      console.log(`No active borrow found for teacher=${teacherId}, key=${keyId}`);
       return res.status(400).json({ error: 'You do not have this key borrowed' });
     }
     
+    console.log('Found active transaction:', transaction[0]);
+    
+    // 2. Update the transaction with return date
+    console.log(`Updating transaction ${transaction[0].id} with return date`);
+    const returnDate = new Date().toISOString();
     const { data: updatedTransaction, error: updateError } = await supabase
       .from('transactions')
-      .update({ returnDate: new Date().toISOString() })
-      .eq('id', transaction[0].id);
+      .update({ returnDate })
+      .eq('id', transaction[0].id)
+      .select();
     
-    if (updateError || updatedTransaction.length === 0) {
-      return res.status(500).json({ error: 'Error updating transaction record' });
+    if (updateError) {
+      console.error('Error updating transaction record:', updateError);
+      return res.status(500).json({ 
+        error: 'Error updating transaction record', 
+        details: updateError.message 
+      });
     }
     
+    if (!updatedTransaction || updatedTransaction.length === 0) {
+      console.error('Transaction update failed');
+      return res.status(500).json({ error: 'Transaction update failed' });
+    }
+    
+    console.log('Transaction updated successfully with return date');
+    
+    // 3. Update key status to Available
+    console.log(`Updating key ${keyId} status to Available`);
     const { data: updatedKey, error: keyUpdateError } = await supabase
       .from('keys')
       .update({ status: 'Available' })
-      .eq('keyId', keyId);
+      .eq('keyid', keyId)
+      .select();
     
-    if (keyUpdateError || updatedKey.length === 0) {
-      return res.status(500).json({ error: 'Error updating key status' });
+    if (keyUpdateError) {
+      console.error('Error updating key status:', keyUpdateError);
+      // Don't roll back transaction, as the key was returned, just log the error
+      return res.status(500).json({ 
+        error: 'Error updating key status', 
+        details: keyUpdateError.message 
+      });
     }
     
+    console.log('Key status updated successfully to Available');
+    
+    // 4. Return success response
     res.json({
       id: updatedTransaction[0].id,
       teacherId,
-      keyId,
+      keyId: updatedTransaction[0].keyid,
       returnDate: updatedTransaction[0].returnDate
     });
   } catch (error) {
-    res.status(500).json({ error: 'Server error' });
+    console.error('Unexpected error in return key:', error);
+    res.status(500).json({ error: 'Server error', details: error.message });
   }
 });
 
@@ -655,24 +818,93 @@ app.get('/api/transactions', authenticateToken, async (req, res) => {
   
   try {
     console.log('Fetching transactions from Supabase...');
-    let query = supabase.from('transactions').select('*');
     
-    if (!isAdmin) {
-      // If not admin, only show their own transactions
-      query = query.eq('teacherId', teacherId);
+    // Use simpler queries first to ensure better compatibility
+    const { data: transactions, error: transactionError } = await supabase
+      .from('transactions')
+      .select('*')
+      .order('borrowDate', { ascending: false });
+      
+    if (transactionError) {
+      console.error('Error fetching transactions:', transactionError);
+      return res.status(500).json({ 
+        error: 'Database error', 
+        details: transactionError.message 
+      });
+    }
+
+    if (!transactions) {
+      console.log('No transactions found');
+      return res.json([]);
     }
     
-    query = query.order('borrowDate', { ascending: false });
+    console.log(`Retrieved ${transactions.length} transactions`);
     
-    const { data: transactions, error } = await query;
+    // Get additional information for each transaction
+    const formattedTransactions = [];
     
-    if (error) {
-      console.error('Error fetching transactions:', error);
-      return res.status(500).json({ error: 'Database error', details: error.message });
+    for (const transaction of transactions) {
+      // Skip other teachers' transactions if not admin
+      if (!isAdmin && transaction.teacherId !== teacherId) {
+        continue;
+      }
+      
+      try {
+        // Get lab information
+        let lab = "Unknown";
+        if (transaction.keyid) {
+          const { data: keyData } = await supabase
+            .from('keys')
+            .select('lab')
+            .eq('keyid', transaction.keyid)
+            .single();
+            
+          if (keyData && keyData.lab) {
+            lab = keyData.lab;
+          }
+        }
+        
+        // Get teacher name if admin
+        let teacherName = null;
+        if (isAdmin && transaction.teacherId) {
+          const { data: userData } = await supabase
+            .from('users')
+            .select('name')
+            .eq('id', transaction.teacherId)
+            .single();
+            
+          if (userData && userData.name) {
+            teacherName = userData.name;
+          }
+        }
+        
+        const formattedTransaction = {
+          id: transaction.id,
+          teacherId: transaction.teacherId,
+          keyId: transaction.keyid,
+          borrowDate: transaction.borrowDate,
+          returnDate: transaction.returnDate,
+          lab
+        };
+        
+        if (teacherName) {
+          formattedTransaction.teacherName = teacherName;
+        }
+        
+        formattedTransactions.push(formattedTransaction);
+      } catch (err) {
+        console.error('Error processing transaction:', err);
+        // Continue with the next transaction instead of failing the entire request
+      }
     }
     
-    console.log(`Successfully fetched ${transactions.length} transactions`);
-    res.json(transactions);
+    // Filter for current user if not admin
+    const userTransactions = isAdmin 
+      ? formattedTransactions 
+      : formattedTransactions.filter(t => t.teacherId === teacherId);
+    
+    console.log(`Returning ${userTransactions.length} formatted transactions`);
+    res.json(userTransactions);
   } catch (error) {
     console.error('Server error in /api/transactions:', error);
     res.status(500).json({ error: 'Server error', details: error.message });
@@ -683,43 +915,104 @@ app.get('/api/transactions', authenticateToken, async (req, res) => {
 app.get('/api/transactions/active', authenticateToken, async (req, res) => {
   const teacherId = req.user.id;
   const isAdmin = req.user.role === 'admin';
+  console.log('GET /api/transactions/active accessed by user:', teacherId, 'isAdmin:', isAdmin);
   
   try {
+    console.log('Fetching active borrows from Supabase...');
     const overdueCutoff = new Date();
     overdueCutoff.setHours(overdueCutoff.getHours() - 24);
-    const overdueCutoffStr = overdueCutoff.toISOString();
     
-    const query = isAdmin 
-      ? `SELECT t.*, u.name as teacherName, k.lab,
-           CASE WHEN t.borrowDate < ? THEN 1 ELSE 0 END as isOverdue
-         FROM transactions t 
-         JOIN users u ON t.teacherId = u.id 
-         JOIN keys k ON t.keyId = k.keyId
-         WHERE t.returnDate IS NULL 
-         ORDER BY t.borrowDate ASC`
-      : `SELECT t.*, k.lab,
-           CASE WHEN t.borrowDate < ? THEN 1 ELSE 0 END as isOverdue
-         FROM transactions t 
-         JOIN keys k ON t.keyId = k.keyId
-         WHERE t.teacherId = ? AND t.returnDate IS NULL 
-         ORDER BY t.borrowDate ASC`;
-    
-    const params = isAdmin ? [overdueCutoffStr] : [overdueCutoffStr, teacherId];
-    
-    const { data: borrows, error } = await supabase
+    // Use simpler queries first to ensure better compatibility
+    let query = supabase
       .from('transactions')
       .select('*')
-      .eq('teacherId', isAdmin ? null : teacherId)
-      .eq('returnDate', null)
-      .order('borrowDate', { ascending: true });
-    
-    if (error) {
-      return res.status(500).json({ error: 'Database error' });
+      .is('returnDate', null);
+      
+    if (!isAdmin) {
+      query = query.eq('teacherId', teacherId);
     }
     
-    res.json(borrows);
+    query = query.order('borrowDate', { ascending: true });
+    
+    const { data: activeBorrows, error: borrowsError } = await query;
+    
+    if (borrowsError) {
+      console.error('Error fetching active borrows:', borrowsError);
+      return res.status(500).json({ 
+        error: 'Database error', 
+        details: borrowsError.message 
+      });
+    }
+    
+    if (!activeBorrows || activeBorrows.length === 0) {
+      console.log('No active borrows found');
+      return res.json([]);
+    }
+    
+    console.log(`Retrieved ${activeBorrows.length} active borrows`);
+    
+    // Get additional information for each borrow
+    const formattedBorrows = [];
+    
+    for (const borrow of activeBorrows) {
+      try {
+        // Get lab information
+        let lab = "Unknown";
+        if (borrow.keyid) {
+          const { data: keyData } = await supabase
+            .from('keys')
+            .select('lab')
+            .eq('keyid', borrow.keyid)
+            .single();
+            
+          if (keyData && keyData.lab) {
+            lab = keyData.lab;
+          }
+        }
+        
+        // Get teacher name if admin
+        let teacherName = null;
+        if (isAdmin && borrow.teacherId) {
+          const { data: userData } = await supabase
+            .from('users')
+            .select('name')
+            .eq('id', borrow.teacherId)
+            .single();
+            
+          if (userData && userData.name) {
+            teacherName = userData.name;
+          }
+        }
+        
+        // Calculate if overdue
+        const borrowDate = new Date(borrow.borrowDate);
+        const isOverdue = borrowDate < overdueCutoff;
+        
+        const formattedBorrow = {
+          id: borrow.id,
+          teacherId: borrow.teacherId,
+          keyId: borrow.keyid,
+          borrowDate: borrow.borrowDate,
+          lab,
+          isOverdue
+        };
+        
+        if (teacherName) {
+          formattedBorrow.teacherName = teacherName;
+        }
+        
+        formattedBorrows.push(formattedBorrow);
+      } catch (err) {
+        console.error('Error processing active borrow:', err);
+        // Continue with the next borrow instead of failing the entire request
+      }
+    }
+    
+    console.log(`Returning ${formattedBorrows.length} formatted active borrows`);
+    res.json(formattedBorrows);
   } catch (error) {
-    res.status(500).json({ error: 'Server error' });
+    console.error('Server error in /api/transactions/active:', error);
+    res.status(500).json({ error: 'Server error', details: error.message });
   }
 });
 
@@ -727,19 +1020,58 @@ app.get('/api/transactions/active', authenticateToken, async (req, res) => {
 app.get('/api/dashboard', authenticateToken, authorizeAdmin, async (req, res) => {
   console.log('GET /api/dashboard accessed by admin:', req.user.id);
   try {
-    // Use a simplified approach for dashboard stats
     const stats = {
       totalKeys: 0,
-      availableKeys: 0,
+      availableKeys: 0, 
       borrowedKeys: 0,
       totalTeachers: 0,
       overdueKeys: 0
     };
     
-    // Just return basic stats without complex queries
+    // Get keys stats
+    const { data: keys, error: keysError } = await supabase
+      .from('keys')
+      .select('status');
+      
+    if (keysError) {
+      console.error('Error fetching keys for dashboard:', keysError);
+    } else if (keys) {
+      stats.totalKeys = keys.length;
+      stats.availableKeys = keys.filter(k => k.status === 'Available').length;
+      stats.borrowedKeys = keys.filter(k => k.status === 'Borrowed').length;
+    }
+    
+    // Get teacher count
+    const { data: teachers, error: teachersError } = await supabase
+      .from('users')
+      .select('id')
+      .eq('role', 'teacher');
+      
+    if (teachersError) {
+      console.error('Error fetching teachers for dashboard:', teachersError);
+    } else if (teachers) {
+      stats.totalTeachers = teachers.length;
+    }
+    
+    // Get overdue transactions (borrowed more than 24 hours ago)
+    const overdueCutoff = new Date();
+    overdueCutoff.setHours(overdueCutoff.getHours() - 24);
+    
+    const { data: overdueTransactions, error: overdueError } = await supabase
+      .from('transactions')
+      .select('*, users!inner(name)')
+      .eq('returnDate', null)
+      .lt('borrowDate', overdueCutoff.toISOString());
+    
+    if (overdueError) {
+      console.error('Error fetching overdue transactions:', overdueError);
+    } else if (overdueTransactions) {
+      stats.overdueKeys = overdueTransactions.length;
+    }
+    
     res.json({
       stats,
-      overdueTransactions: []
+      overdueTransactions: overdueTransactions || []
     });
   } catch (error) {
     console.error('Server error in /api/dashboard:', error);
@@ -1004,7 +1336,7 @@ app.get('/api/debug-tables', async (req, res) => {
       count: keys ? keys.length : 0,
       error: keysError ? keysError.message : null,
       sample: keys && keys.length > 0 ? { 
-        keyId: keys[0].keyId,
+        keyid: keys[0].keyid,
         lab: keys[0].lab,
         status: keys[0].status
       } : null
@@ -1023,7 +1355,7 @@ app.get('/api/debug-tables', async (req, res) => {
       sample: transactions && transactions.length > 0 ? { 
         id: transactions[0].id,
         teacherId: transactions[0].teacherId,
-        keyId: transactions[0].keyId
+        keyid: transactions[0].keyid
       } : null
     };
     
