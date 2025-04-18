@@ -38,18 +38,21 @@ const PORT = process.env.PORT || 5123;
 const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret_key';
 
 // Specific frontend URL
-const FRONTEND_URL = 'https://sti-pat9vocms-franc-egos-projects.vercel.app';
+const FRONTEND_URL = 'https://sti-rmvew1ioi-franc-egos-projects.vercel.app';
 
 // Serve static files from public directory
 app.use(express.static('public'));
 
 // CORS configuration
 app.use(cors({
-  origin: '*',
+  origin: ['https://sti-rmvew1ioi-franc-egos-projects.vercel.app', 'http://localhost:3000'],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
-  credentials: false
+  credentials: true
 }));
+
+// Add CORS preflight handling
+app.options('*', cors());
 
 // Enable JSON parsing
 app.use(express.json());
@@ -233,6 +236,12 @@ app.get('/api/hello', (req, res) => {
 
 // Authentication
 app.post('/api/login', async (req, res) => {
+  // Set CORS headers directly
+  res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  
   const { id, password } = req.body;
   
   if (!id || !password) {
