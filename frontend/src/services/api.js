@@ -2,7 +2,7 @@ import axios from 'axios';
 
 // Define the API base URL based on environment
 const apiBaseUrl = process.env.NODE_ENV === 'production' 
-  ? 'https://sti-mis.vercel.app/api'  // Production URL
+  ? 'https://sti-q88j0si6i-franc-egos-projects.vercel.app/api'  // Production backend URL
   : '/api';  // Local development URL
 
 console.log('API Base URL:', apiBaseUrl);
@@ -240,7 +240,7 @@ export const getDashboardData = async () => {
   }
 };
 
-// For borrowed keys
+// For available keys
 export const getAvailableKeys = async () => {
   try {
     console.log('Fetching available keys...');
