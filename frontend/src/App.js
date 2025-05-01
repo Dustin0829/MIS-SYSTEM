@@ -1,20 +1,16 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
-import { ToastContainer } from 'react-toastify';
+import { ToastContainer, toast } from 'react-toastify';
 import { useState, useEffect } from 'react';
+import 'react-toastify/dist/ReactToastify.css';
 import './App.css';
 
-// Auth Components
-import Login from './components/Login';
-
-// Layout Components
-import TeacherLayout from './layouts/TeacherLayout';
+// Layouts
 import AdminLayout from './layouts/AdminLayout';
+import TeacherLayout from './layouts/TeacherLayout';
+import PublicTeacherLayout from './layouts/PublicTeacherLayout';
 
-// Teacher Components
-import TeacherHome from './components/teacher/TeacherHome';
-import BorrowKey from './components/teacher/BorrowKey';
-import MyBorrows from './components/teacher/MyBorrows';
-import History from './components/teacher/History';
+// Components
+import Login from './components/Login';
 
 // Admin Components
 import Dashboard from './components/admin/Dashboard';
@@ -22,36 +18,57 @@ import KeyManagement from './components/admin/KeyManagement';
 import TeacherManagement from './components/admin/TeacherManagement';
 import AllTransactions from './components/admin/AllTransactions';
 
+// Teacher Components
+import TeacherHome from './components/teacher/TeacherHome';
+import BorrowKey from './components/teacher/BorrowKey';
+import MyBorrows from './components/teacher/MyBorrows';
+import TransactionHistory from './components/teacher/History';
+
+// Public Components
+import TeacherPortal from './components/public/TeacherPortal';
+import PublicTransactions from './components/public/PublicTransactions';
+
 function App() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Check if user is logged in
-    const token = localStorage.getItem('token');
+    // Check if user is logged in - focus on user data instead of token validity
     const userData = localStorage.getItem('user');
     
-    if (token && userData) {
-      setUser(JSON.parse(userData));
+    if (userData) {
+      try {
+        setUser(JSON.parse(userData));
+        // Ensure token exists even if it's invalid - this will help maintain session
+        if (!localStorage.getItem('token')) {
+          // Create a placeholder token so requests don't fail entirely
+          localStorage.setItem('token', 'local-session');
+        }
+      } catch (err) {
+        console.error('Error parsing user data:', err);
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+      }
     }
     
     setLoading(false);
   }, []);
 
-  // Check if user is logged in
+  // Check if user is logged in and their role
   const isLoggedIn = !!user;
   const isAdmin = user?.role === 'admin';
+  const isTeacher = user?.role === 'teacher';
 
-  // Protected route component
-  const ProtectedRoute = ({ children, requireAdmin }) => {
+  // Route protection components
+  const ProtectedRoute = ({ children, requiredRole }) => {
     if (!isLoggedIn) {
       return <Navigate to="/login" />;
     }
-
-    if (requireAdmin && !isAdmin) {
-      return <Navigate to="/teacher" />;
+    
+    if (requiredRole && user.role !== requiredRole) {
+      return <Navigate to={user.role === 'admin' ? '/admin' : '/teacher'} />;
     }
-
+    
     return children;
   };
 
@@ -71,28 +88,27 @@ function App() {
       <ToastContainer position="top-right" autoClose={3000} />
       <Routes>
         {/* Public Routes */}
-        <Route path="/login" element={!isLoggedIn ? <Login setUser={setUser} /> : (isAdmin ? <Navigate to="/admin" /> : <Navigate to="/teacher" />)} />
-        
-        {/* Teacher Routes */}
         <Route 
-          path="/teacher" 
-          element={
-            <ProtectedRoute>
-              <TeacherLayout user={user} onLogout={handleLogout} />
-            </ProtectedRoute>
-          }
-        >
-          <Route index element={<TeacherHome />} />
-          <Route path="borrow" element={<BorrowKey />} />
-          <Route path="my-borrows" element={<MyBorrows />} />
-          <Route path="history" element={<History />} />
+          path="/login" 
+          element={isLoggedIn 
+            ? <Navigate to={isAdmin ? '/admin' : '/teacher'} /> 
+            : <Login setUser={setUser} />
+          } 
+        />
+        
+        {/* Public Teacher Portal (no login required) */}
+        <Route path="/teacher-portal" element={<PublicTeacherLayout />}>
+          <Route index element={<TeacherPortal />} />
+          <Route path="transactions" element={<PublicTransactions />} />
         </Route>
-
+        
+        <Route path="/" element={<Navigate to={isLoggedIn ? (isAdmin ? '/admin' : '/teacher') : '/teacher-portal'} />} />
+        
         {/* Admin Routes */}
         <Route 
           path="/admin" 
           element={
-            <ProtectedRoute requireAdmin>
+            <ProtectedRoute requiredRole="admin">
               <AdminLayout user={user} onLogout={handleLogout} />
             </ProtectedRoute>
           }
@@ -102,9 +118,23 @@ function App() {
           <Route path="teachers" element={<TeacherManagement />} />
           <Route path="transactions" element={<AllTransactions />} />
         </Route>
-
-        {/* Default Routes */}
-        <Route path="/" element={<Navigate to={isLoggedIn ? (isAdmin ? "/admin" : "/teacher") : "/login"} />} />
+        
+        {/* Teacher Routes (protected) */}
+        <Route 
+          path="/teacher" 
+          element={
+            <ProtectedRoute requiredRole="teacher">
+              <TeacherLayout user={user} onLogout={handleLogout} />
+            </ProtectedRoute>
+          }
+        >
+          <Route index element={<TeacherHome />} />
+          <Route path="borrow" element={<BorrowKey />} />
+          <Route path="my-borrows" element={<MyBorrows />} />
+          <Route path="history" element={<TransactionHistory />} />
+        </Route>
+        
+        {/* Fallback route */}
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
     </div>

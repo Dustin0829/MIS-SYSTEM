@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { toast } from 'react-toastify';
 import { login } from '../services/api';
+import { Link } from 'react-router-dom';
 
 const Login = ({ setUser }) => {
   const [formData, setFormData] = useState({
@@ -42,7 +43,7 @@ const Login = ({ setUser }) => {
       // Update user state in parent component
       setUser(data.user);
       
-      toast.success('Login successful!');
+      toast.success(`Login successful! Welcome, ${data.user.name}`);
     } catch (error) {
       console.error('Login error:', error);
       
@@ -52,17 +53,17 @@ const Login = ({ setUser }) => {
       if (error.response) {
         // The request was made and the server responded with a status code
         // that falls out of the range of 2xx
-        errorMessage = `Server error: ${error.response.status} - ${error.response.data?.error || 'Unknown error'}`;
+        errorMessage = `${error.response.data?.error || 'Invalid credentials'}`;
         setDebugInfo({
           status: error.response.status,
           data: error.response.data
         });
       } else if (error.request) {
         // The request was made but no response was received
-        errorMessage = 'No response from server. Is the backend running on port 5123?';
+        errorMessage = 'No response from server. Is the backend running?';
       } else {
         // Something happened in setting up the request that triggered an Error
-        errorMessage = error.message || 'Unknown error occurred';
+        errorMessage = error.toString() || 'Unknown error occurred';
       }
       
       setError(errorMessage);
@@ -77,14 +78,14 @@ const Login = ({ setUser }) => {
       <div className="row justify-content-center w-100">
         <div className="col-md-6 col-lg-5">
           <div className="card shadow login-card">
-            <div className="card-header login-header text-center py-3">
+            <div className="card-header login-header text-center py-3 bg-primary text-white">
               <div className="d-flex justify-content-center align-items-center">
                 <div className="sti-logo"></div>
-                <h2 className="mb-0">KEY MANAGEMENT SYSTEM</h2>
+                <h2 className="mb-0">STI LAB KEY SYSTEM</h2>
               </div>
+              <div className="mt-2 text-white">Login to your account</div>
             </div>
             <div className="card-body p-5">
-              
               {error && (
                 <div className="alert alert-danger" role="alert">
                   {error}
@@ -146,15 +147,35 @@ const Login = ({ setUser }) => {
                       Logging in...
                     </>
                   ) : (
-                    'LOGIN'
+                    'LOG IN'
                   )}
                 </button>
               </form>
               
               <div className="mt-4 text-center">
-                <small className="text-muted">
-                  * Demo credentials: Admin (ID: admin, Password: admin123)
-                </small>
+                <div className="text-muted mb-2">
+                  <strong>Demo Login Credentials:</strong>
+                </div>
+                <div className="row">
+                  <div className="col-md-6">
+                    <div className="card bg-light mb-2">
+                      <div className="card-body py-2">
+                        <strong>Admin:</strong><br />
+                        ID: admin<br />
+                        Password: admin123
+                      </div>
+                    </div>
+                  </div>
+                  <div className="col-md-6">
+                    <div className="card bg-light mb-2">
+                      <div className="card-body py-2">
+                        <strong>Teacher:</strong><br />
+                        ID: teacher1<br />
+                        Password: password
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>

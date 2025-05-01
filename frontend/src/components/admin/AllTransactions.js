@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { getTransactions } from '../../services/api';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
 
 const AllTransactions = () => {
   const [transactions, setTransactions] = useState([]);
@@ -56,6 +58,87 @@ const AllTransactions = () => {
     setFilteredTransactions(filtered);
   }, [searchTerm, filterStatus, transactions]);
 
+  const handlePrint = () => {
+    window.print();
+  };
+
+  const exportPDF = () => {
+    const doc = new jsPDF();
+    
+    // Add title to the PDF
+    doc.setFontSize(15);
+    doc.text('Transaction Report', 14, 15);
+    doc.setFontSize(10);
+    doc.text(`Generated on: ${new Date().toLocaleString()}`, 14, 22);
+    
+    // Define the table columns
+    const tableColumn = ["ID", "Teacher", "Key ID", "Borrowed Date", "Returned Date", "Status", "Duration"];
+    
+    // Define the table rows
+    const tableRows = [];
+    
+    // Add data to rows
+    filteredTransactions.forEach(transaction => {
+      const borrowDate = new Date(transaction.borrowDate);
+      const returnDate = transaction.returnDate ? new Date(transaction.returnDate) : null;
+      const isActive = !returnDate;
+      
+      // Check if it's overdue
+      const now = new Date();
+      const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+      const isOverdue = isActive && borrowDate < oneDayAgo;
+      
+      // Calculate duration
+      let duration;
+      if (isActive) {
+        const diffHours = Math.round((now - borrowDate) / (1000 * 60 * 60));
+        duration = `${diffHours} hours (ongoing)`;
+      } else {
+        const diffHours = Math.round((returnDate - borrowDate) / (1000 * 60 * 60));
+        if (diffHours < 1) {
+          const diffMinutes = Math.round((returnDate - borrowDate) / (1000 * 60));
+          duration = `${diffMinutes} minutes`;
+        } else {
+          duration = `${diffHours} hours`;
+        }
+      }
+      
+      let status = isOverdue ? 'Overdue' : (isActive ? 'Active' : 'Returned');
+      
+      const data = [
+        transaction.teacherId,
+        transaction.teacherName,
+        transaction.keyId,
+        borrowDate.toLocaleString(),
+        returnDate ? returnDate.toLocaleString() : '-',
+        status,
+        duration
+      ];
+      tableRows.push(data);
+    });
+    
+    // Generate the table
+    doc.autoTable({
+      head: [tableColumn],
+      body: tableRows,
+      startY: 30,
+      styles: { 
+        fontSize: 8,
+        cellPadding: 2
+      },
+      headerStyles: {
+        fillColor: [41, 128, 185],
+        textColor: 255
+      },
+      alternateRowStyles: {
+        fillColor: [240, 240, 240]
+      }
+    });
+    
+    // Save the PDF
+    doc.save('transactions-report.pdf');
+  };
+
   if (loading) {
     return (
       <div className="text-center py-5">
@@ -107,6 +190,21 @@ const AllTransactions = () => {
                 <option value="overdue">Overdue Keys</option>
               </select>
             </div>
+          </div>
+          
+          <div className="d-flex justify-content-end mt-3">
+            <button 
+              className="btn btn-outline-secondary me-2" 
+              onClick={handlePrint}
+            >
+              <i className="bi bi-printer"></i> Print
+            </button>
+            <button 
+              className="btn btn-primary" 
+              onClick={exportPDF}
+            >
+              <i className="bi bi-file-earmark-pdf"></i> Export PDF
+            </button>
           </div>
         </div>
       </div>
@@ -162,7 +260,7 @@ const AllTransactions = () => {
                         key={transaction.id} 
                         className={isOverdue ? 'table-danger' : (isActive ? 'table-warning' : '')}
                       >
-                        <td>{transaction.id}</td>
+                        <td>{transaction.teacherId}</td>
                         <td>{transaction.teacherName}</td>
                         <td>{transaction.keyId}</td>
                         <td>{borrowDate.toLocaleString()}</td>
@@ -173,7 +271,7 @@ const AllTransactions = () => {
                           ) : isActive ? (
                             <span className="badge bg-warning text-dark">Active</span>
                           ) : (
-                            <span className="badge bg-success">Returned</span>
+                            <span className="badge bg-primary">Returned</span>
                           )}
                         </td>
                         <td>{duration}</td>
@@ -191,6 +289,43 @@ const AllTransactions = () => {
           </div>
         </div>
       )}
+      
+      <style jsx="true">{`
+        @media print {
+          .navbar, footer, button, .btn, select, input, label, .mt-3 {
+            display: none !important;
+          }
+          .card {
+            border: none !important;
+            box-shadow: none !important;
+          }
+          .card-body:first-of-type {
+            padding: 0 !important;
+          }
+          table {
+            width: 100% !important;
+          }
+          .table-responsive {
+            overflow: visible !important;
+          }
+          h2, .table, .table-responsive, tbody, td, th, tr {
+            display: table !important;
+          }
+          .table {
+            display: table !important;
+            width: 100% !important;
+          }
+          tbody {
+            display: table-row-group !important;
+          }
+          tr {
+            display: table-row !important;
+          }
+          td, th {
+            display: table-cell !important;
+          }
+        }
+      `}</style>
     </div>
   );
 };

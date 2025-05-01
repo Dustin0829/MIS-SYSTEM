@@ -7,20 +7,29 @@ const Dashboard = () => {
   const [dashboardData, setDashboardData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [isRetrying, setIsRetrying] = useState(false);
+
+  const fetchDashboardData = async () => {
+    try {
+      setLoading(true);
+      setError('');
+      const data = await getDashboardData();
+      setDashboardData(data);
+    } catch (error) {
+      console.error('Dashboard error:', error);
+      setError('Failed to load dashboard data: ' + error);
+    } finally {
+      setLoading(false);
+      setIsRetrying(false);
+    }
+  };
+
+  const handleRetry = () => {
+    setIsRetrying(true);
+    fetchDashboardData();
+  };
 
   useEffect(() => {
-    const fetchDashboardData = async () => {
-      try {
-        setLoading(true);
-        const data = await getDashboardData();
-        setDashboardData(data);
-      } catch (error) {
-        setError('Failed to load dashboard data: ' + error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchDashboardData();
     
     // Refresh dashboard data every 30 seconds
@@ -43,7 +52,19 @@ const Dashboard = () => {
   if (error) {
     return (
       <div className="alert alert-danger" role="alert">
-        {error}
+        <h4 className="alert-heading">Dashboard Error</h4>
+        <p>{error}</p>
+        <hr />
+        <div className="d-flex justify-content-between align-items-center">
+          <p className="mb-0">This might be due to an authentication issue or server problem.</p>
+          <button 
+            className="btn btn-primary" 
+            onClick={handleRetry} 
+            disabled={isRetrying}
+          >
+            {isRetrying ? 'Retrying...' : 'Retry Loading'}
+          </button>
+        </div>
       </div>
     );
   }

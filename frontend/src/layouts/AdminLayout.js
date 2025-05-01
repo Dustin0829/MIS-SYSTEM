@@ -8,7 +8,7 @@ const AdminLayout = ({ user, onLogout }) => {
         <div className="container">
           <div className="d-flex align-items-center">
             <div className="sti-logo me-2"></div>
-            <span className="navbar-brand">Admin</span>
+            <span className="navbar-brand">Admin Panel</span>
           </div>
           <button 
             className="navbar-toggler" 
@@ -40,13 +40,18 @@ const AdminLayout = ({ user, onLogout }) => {
                   Transactions
                 </NavLink>
               </li>
+              <li className="nav-item">
+                <a className="nav-link text-warning" href="/teacher-portal" target="_blank" rel="noopener noreferrer">
+                  <i className="bi bi-arrow-left"></i> View Teacher Interface
+                </a>
+              </li>
             </ul>
             <div className="d-flex align-items-center">
               <span className="text-white me-3">
-                 {user?.name}
+                 {user?.name} (Admin)
               </span>
               <button 
-                className="btn btn-secondary" 
+                className="btn btn-outline-light" 
                 onClick={onLogout}
               >
                 Log Out
@@ -59,7 +64,7 @@ const AdminLayout = ({ user, onLogout }) => {
         <Outlet />
       </main>
       <footer className="container-fluid text-center py-3 footer mt-5">
-        <small>&copy; Franc {new Date().getFullYear()} STI Lab Key Management System - Admin Panel</small>
+        <small>&copy; {new Date().getFullYear()} Franc Admin Panel</small>
       </footer>
     </div>
   );

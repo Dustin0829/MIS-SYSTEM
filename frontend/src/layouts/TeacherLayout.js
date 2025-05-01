@@ -10,7 +10,7 @@ const TeacherLayout = ({ user, onLogout }) => {
             <div className="sti-logo me-2"></div>
             <span className="navbar-brand">Lab Key Management</span>
           </div>
-          <button 
+          <button   
             className="navbar-toggler" 
             type="button" 
             data-bs-toggle="collapse" 

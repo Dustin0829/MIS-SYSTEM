@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { getTransactions } from '../../services/api';
+import { getPublicTransactions } from '../../services/api';
 
-const History = () => {
+const PublicTransactions = () => {
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -10,10 +10,10 @@ const History = () => {
     const fetchTransactions = async () => {
       try {
         setLoading(true);
-        const data = await getTransactions();
+        const data = await getPublicTransactions();
         setTransactions(data);
       } catch (error) {
-        setError('Failed to load transaction history: ' + error);
+        setError('Failed to load transactions: ' + error);
       } finally {
         setLoading(false);
       }
@@ -28,7 +28,7 @@ const History = () => {
         <div className="spinner-border text-primary" role="status">
           <span className="visually-hidden">Loading...</span>
         </div>
-        <p className="mt-2">Loading transaction history...</p>
+        <p className="mt-2">Loading transactions...</p>
       </div>
     );
   }
@@ -41,13 +41,30 @@ const History = () => {
     );
   }
 
+  // Calculate duration between borrow and return dates or current time
+  const calculateDuration = (borrowDate, returnDate) => {
+    const bDate = new Date(borrowDate);
+    const rDate = returnDate ? new Date(returnDate) : new Date();
+    
+    const diffMs = rDate - bDate;
+    const diffMins = Math.floor(diffMs / (1000 * 60));
+    
+    if (diffMins < 60) {
+      return `${diffMins} minutes`;
+    } else {
+      const diffHours = Math.floor(diffMins / 60);
+      const remainingMins = diffMins % 60;
+      return `${diffHours} hours ${remainingMins > 0 ? `${remainingMins} minutes` : ''}`;
+    }
+  };
+
   return (
     <div>
       <h2 className="mb-4">Transaction History</h2>
       
       {transactions.length === 0 ? (
         <div className="alert alert-info" role="alert">
-          No transaction history found. Once you borrow and return keys, your history will appear here.
+          No transactions found.
         </div>
       ) : (
         <div className="card">
@@ -56,6 +73,8 @@ const History = () => {
               <table className="table table-hover">
                 <thead>
                   <tr>
+                    <th>ID</th>
+                    <th>Teacher</th>
                     <th>Key ID</th>
                     <th>Borrowed Date</th>
                     <th>Returned Date</th>
@@ -64,38 +83,19 @@ const History = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {transactions.map((transaction) => {
-                    const borrowDate = new Date(transaction.borrowDate);
-                    const returnDate = transaction.returnDate ? new Date(transaction.returnDate) : null;
-                    const isActive = !returnDate;
-                    
-                    // Calculate duration
-                    let duration;
-                    if (isActive) {
-                      const now = new Date();
-                      const diffHours = Math.round((now - borrowDate) / (1000 * 60 * 60));
-                      duration = `${diffHours} hours (ongoing)`;
-                    } else {
-                      const diffHours = Math.round((returnDate - borrowDate) / (1000 * 60 * 60));
-                      if (diffHours < 1) {
-                        const diffMinutes = Math.round((returnDate - borrowDate) / (1000 * 60));
-                        duration = `${diffMinutes} minutes`;
-                      } else {
-                        duration = `${diffHours} hours`;
-                      }
-                    }
-                    
+                  {transactions.map(transaction => {
+                    const duration = calculateDuration(transaction.borrowDate, transaction.returnDate);
                     return (
                       <tr key={transaction.id}>
+                        <td>{transaction.teacherId}</td>
+                        <td>{transaction.teacherName}</td>
                         <td>{transaction.keyId}</td>
-                        <td>{borrowDate.toLocaleString()}</td>
-                        <td>{returnDate ? returnDate.toLocaleString() : '-'}</td>
+                        <td>{new Date(transaction.borrowDate).toLocaleString()}</td>
+                        <td>{transaction.returnDate ? new Date(transaction.returnDate).toLocaleString() : '-'}</td>
                         <td>
-                          {isActive ? (
-                            <span className="badge bg-warning text-dark">Active</span>
-                          ) : (
-                            <span className="badge bg-primary">Returned</span>
-                          )}
+                          <span className={`badge ${transaction.returnDate ? 'bg-primary' : 'bg-warning text-dark'}`}>
+                            {transaction.returnDate ? 'Returned' : 'Borrowed'}
+                          </span>
                         </td>
                         <td>{duration}</td>
                       </tr>
@@ -111,4 +111,4 @@ const History = () => {
   );
 };
 
-export default History; 
+export default PublicTransactions; 

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
 import { getKeys, createKey, deleteKey } from '../../services/api';
+import dataSyncService from '../../services/DataSyncService';
 
 const KeyManagement = () => {
   const [keys, setKeys] = useState([]);
@@ -33,6 +34,21 @@ const KeyManagement = () => {
 
   useEffect(() => {
     fetchKeys();
+    
+    // Subscribe to real-time updates from DataSyncService
+    const subscription = dataSyncService.onKeyUpdates(updatedKeys => {
+      const mappedKeys = updatedKeys.map(key => ({
+        keyId: key.keyid || key.keyId,
+        lab: key.lab,
+        status: key.status
+      }));
+      setKeys(mappedKeys);
+    });
+    
+    // Clean up subscription when component unmounts
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
   const handleChange = (e) => {
@@ -204,7 +220,7 @@ const KeyManagement = () => {
                       <td>{key.keyId}</td>
                       <td>{key.lab}</td>
                       <td>
-                        <span className={`badge ${key.status === 'Available' ? 'bg-success' : 'bg-warning'}`}>
+                        <span className={`badge ${key.status === 'Available' ? 'bg-success' : 'bg-danger'}`}>
                           {key.status}
                         </span>
                       </td>
