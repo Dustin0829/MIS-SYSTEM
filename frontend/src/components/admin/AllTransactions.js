@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { getTransactions } from '../../services/api';
-import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import * as XLSX from 'xlsx';
+import { saveAs } from 'file-saver';
 
 const AllTransactions = () => {
   const [transactions, setTransactions] = useState([]);
@@ -58,37 +58,19 @@ const AllTransactions = () => {
     setFilteredTransactions(filtered);
   }, [searchTerm, filterStatus, transactions]);
 
-  const handlePrint = () => {
-    window.print();
-  };
-
-  const exportPDF = () => {
-    const doc = new jsPDF();
-    
-    // Add title to the PDF
-    doc.setFontSize(15);
-    doc.text('Transaction Report', 14, 15);
-    doc.setFontSize(10);
-    doc.text(`Generated on: ${new Date().toLocaleString()}`, 14, 22);
-    
-    // Define the table columns
-    const tableColumn = ["ID", "Teacher", "Key ID", "Borrowed Date", "Returned Date", "Status", "Duration"];
-    
-    // Define the table rows
-    const tableRows = [];
-    
-    // Add data to rows
-    filteredTransactions.forEach(transaction => {
+  // Function to export transactions to XLSX (Excel) format
+  // This function will create an XLSX file from the filtered transactions and trigger a download
+  const exportXLSX = () => {
+    const now = new Date();
+    const rows = filteredTransactions.map(transaction => {
       const borrowDate = new Date(transaction.borrowDate);
       const returnDate = transaction.returnDate ? new Date(transaction.returnDate) : null;
       const isActive = !returnDate;
-      
-      // Check if it's overdue
-      const now = new Date();
+  
       const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
       const isOverdue = isActive && borrowDate < oneDayAgo;
-      
-      // Calculate duration
+  
+      // Duration calculation
       let duration;
       if (isActive) {
         const diffHours = Math.round((now - borrowDate) / (1000 * 60 * 60));
@@ -102,44 +84,30 @@ const AllTransactions = () => {
           duration = `${diffHours} hours`;
         }
       }
-      
-      let status = isOverdue ? 'Overdue' : (isActive ? 'Active' : 'Returned');
-      
-      const data = [
-        transaction.teacherId,
-        transaction.teacherName,
-        transaction.keyId,
-        borrowDate.toLocaleString(),
-        returnDate ? returnDate.toLocaleString() : '-',
-        status,
-        duration
-      ];
-      tableRows.push(data);
+  
+      const status = isOverdue ? 'Overdue' : (isActive ? 'Active' : 'Returned');
+  
+      return {
+        ID: transaction.teacherId,
+        Teacher: transaction.teacherName,
+        'Key ID': transaction.keyId,
+        'Borrowed Date': borrowDate.toLocaleString(),
+        'Returned Date': returnDate ? returnDate.toLocaleString() : '-',
+        Status: status,
+        Duration: duration,
+      };
     });
-    
-    // Generate the table
-    doc.autoTable({
-      head: [tableColumn],
-      body: tableRows,
-      startY: 30,
-      styles: { 
-        fontSize: 8,
-        cellPadding: 2
-      },
-      headerStyles: {
-        fillColor: [41, 128, 185],
-        textColor: 255
-      },
-      alternateRowStyles: {
-        fillColor: [240, 240, 240]
-      }
-    });
-    
-    // Save the PDF
-    doc.save('transactions-report.pdf');
+  
+    const worksheet = XLSX.utils.json_to_sheet(rows);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Transactions');
+  
+    const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+    const blob = new Blob([excelBuffer], { type: 'application/octet-stream' });
+    saveAs(blob, 'LebronJamesLoveCurry.xlsx');
   };
 
-  if (loading) {
+  if (loading) { 
     return (
       <div className="text-center py-5">
         <div className="spinner-border text-primary" role="status">
@@ -194,16 +162,10 @@ const AllTransactions = () => {
           
           <div className="d-flex justify-content-end mt-3">
             <button 
-              className="btn btn-outline-secondary me-2" 
-              onClick={handlePrint}
+                className="btn btn-success ms-2" 
+                onClick={exportXLSX}
             >
-              <i className="bi bi-printer"></i> Print
-            </button>
-            <button 
-              className="btn btn-primary" 
-              onClick={exportPDF}
-            >
-              <i className="bi bi-file-earmark-pdf"></i> Export PDF
+               <i className="bi bi-file-earmark-excel"></i> Export XLSX
             </button>
           </div>
         </div>
