@@ -237,25 +237,39 @@ const TeacherPortal = () => {
   };
 
   return (
-    <div className="container h-100 d-flex align-items-center justify-content-center py-5">
-      <div className="row justify-content-center" style={{ width: '100%' }}>
-        <div className="col-md-8 col-lg-6">
-          <h1 className="mb-4 text-center text-white" style={{ textShadow: '2px 2px 4px rgba(0,0,0,0.5)' }}>STI Laboratory Key Portal</h1>
-          
-          <div className="card shadow-lg" style={{ background: 'rgba(255, 255, 255, 0.95)' }}>
+    <div className="container py-5">
+    <div className="text-center mb-4">
+    <h1
+        className="fw-bold"
+        style={{
+        color: '#FFFFFF',
+        textShadow: '1px 1px 2px black',
+  }}
+>
+  STI Laboratory Key Portal
+</h1>
+      </div>
+    <div className="row justify-content-center align-items-start">
+    <div className="col-md-8">
+    <div className="d-flex align-items-start">
+    <div className="d-flex align-items-stretch">
+      
+   
+      <div className="me-3" style={{ width: '500px' }}>
+          <div className="card shadow-lg h-100" style={{ background: 'rgba(255, 255, 255, 0.95)' }}>
             <div className="card-header bg-primary text-white">
               <ul className="nav nav-tabs card-header-tabs">
                 <li className="nav-item">
-                  <button 
-                    className={`nav-link ${activeTab === 'borrow' ? 'active bg-white text-primary' : 'text-white'}`} 
+                  <button
+                    className={`nav-link ${activeTab === 'borrow' ? 'active bg-white text-primary' : 'text-white'}`}
                     onClick={() => setActiveTab('borrow')}
                   >
                     Borrow Key
                   </button>
                 </li>
                 <li className="nav-item">
-                  <button 
-                    className={`nav-link ${activeTab === 'return' ? 'active bg-white text-primary' : 'text-white'}`} 
+                  <button
+                    className={`nav-link ${activeTab === 'return' ? 'active bg-white text-primary' : 'text-white'}`}
                     onClick={() => setActiveTab('return')}
                   >
                     Return Key
@@ -263,15 +277,13 @@ const TeacherPortal = () => {
                 </li>
               </ul>
             </div>
-            
             <div className="card-body">
               {error && (
                 <div className="alert alert-danger" role="alert">
                   {error}
                 </div>
               )}
-              
-              <div className="mb-4">
+              <div className="mb-5">
                 <label htmlFor="teacherId" className="form-label">Teacher ID</label>
                 <input
                   type="text"
@@ -283,30 +295,6 @@ const TeacherPortal = () => {
                   required
                 />
               </div>
-              
-              {teacherInfo && (
-                <div className="card mb-4 border-primary">
-                  <div className="card-body">
-                    <div className="row">
-                      <div className="col-md-4 text-center">
-                        <img
-                          src={teacherInfo.photoUrl}
-                          alt="Teacher"
-                          className="img-fluid rounded"
-                          style={{ maxHeight: '100px' }}
-                        />
-                      </div>
-                      <div className="col-md-8">
-                        <h5>{teacherInfo.name}</h5>
-                        <p className="mb-0">ID: {teacherInfo.id}</p>
-                        <p className="mb-0">Department: {teacherInfo.department}</p>
-                        <p className="mb-0">Date: {new Date().toLocaleDateString()}</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-              
               {activeTab === 'borrow' ? (
                 <form onSubmit={handleBorrow}>
                   <div className="mb-3">
@@ -326,7 +314,6 @@ const TeacherPortal = () => {
                       ))}
                     </select>
                   </div>
-                  
                   <button
                     type="submit"
                     className="btn btn-primary w-100"
@@ -353,11 +340,9 @@ const TeacherPortal = () => {
                           <option key={transaction.id} value={transaction.keyId}>
                             {transaction.keyId} - {transaction.lab}
                           </option>
-                        ))
-                      }
+                        ))}
                     </select>
                   </div>
-                  
                   <button
                     type="submit"
                     className="btn btn-success w-100"
@@ -370,9 +355,34 @@ const TeacherPortal = () => {
             </div>
           </div>
         </div>
+
+        {/* Teacher Information */}
+        {teacherInfo && (
+          <div className="card shadow-lg" style={{ width: '300px', background: 'rgba(255, 255, 255, 0.95)' }}>
+            <div className="card-header bg-primary text-white">
+              <h5 className="mb-0">Teacher Information</h5>
+            </div>
+            <div className="card-body text-center">
+              <img
+                src={teacherInfo.photoUrl}
+                alt="Teacher"
+                className="img-fluid rounded mb-3"
+                style={{ maxHeight: '300px' }}
+              />
+              <h5 className="card-title">{teacherInfo.name}</h5>
+              <p className="mb-1"><strong>ID:</strong> {teacherInfo.id}</p>
+              <p className="mb-1"><strong>Department:</strong> {teacherInfo.department}</p>
+              <p className="mb-0"><strong>Date:</strong> {new Date().toLocaleDateString()}</p>
+            </div>
+          </div>
+        )}
+        </div>
       </div>
     </div>
-  );
+  </div>
+</div>
+
+);
 };
 
 export default TeacherPortal; 
