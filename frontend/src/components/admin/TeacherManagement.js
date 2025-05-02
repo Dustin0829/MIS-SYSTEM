@@ -2,7 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
 import { getTeachers, addTeacher, updateTeacher, deleteTeacher } from '../../services/api';
 
+// Importing teacher by Excel file
+import * as XLSX from 'xlsx';
+
+
 const TeacherManagement = () => {
+  // Importing teacher by Excel file
+  const [showImportForm, setShowImportForm] = useState(false);
+
   const [teachers, setTeachers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -217,33 +224,102 @@ const TeacherManagement = () => {
     );
   }
 
+  // Function for importing teacher by Excel file
+  const handleExcelUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+  
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      const data = new Uint8Array(event.target.result);
+      const workbook = XLSX.read(data, { type: "array" });
+      const sheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[sheetName];
+      const jsonData = XLSX.utils.sheet_to_json(worksheet);
+  
+      // Optional: validate data
+      const validData = jsonData.filter(row => row.id && row.name);
+  
+      try {
+        for (const teacher of validData) {
+          await addTeacher({
+            id: teacher.id,
+            name: teacher.name,
+            department: teacher.department || '',
+            photo_url: teacher.photo_url || ''
+          });
+        }
+        toast.success("Teachers imported successfully!");
+        fetchTeachers();
+        setShowImportForm(false);
+      } catch (err) {
+        console.error("Import error:", err);
+        toast.error("Failed to import teachers.");
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  };
+
   return (
     <div>
       <div className="d-flex justify-content-between align-items-center mb-4">
         <h2>Teacher Management</h2>
-        <button 
-          className="btn btn-primary" 
-          onClick={() => {
-            setShowAddForm(!showAddForm);
-            setShowEditForm(false);
-            setFormData({ id: '', name: '', email: '', password: '' });
-          }}
-        >
-          {showAddForm ? 'Cancel' : 'Add New Teacher'}
-        </button>
-      </div>
-      
-      {error && (
-        <div className="alert alert-danger" role="alert">
-          {error}
+        <div className="d-flex gap-2">
+          <button 
+            className="btn btn-primary" 
+            onClick={() => {
+              setShowAddForm(!showAddForm);
+              setShowEditForm(false);
+              setFormData({ id: '', name: '', email: '', password: '' });
+            }}
+          >
+            {showAddForm ? 'Cancel' : 'Add New Teacher'}
+          </button>
+          <button 
+            className="btn btn-secondary" 
+            onClick={() => {
+              setShowImportForm(!showImportForm);
+              setShowAddForm(false); // close add form if switching
+            }}
+          >
+            {showImportForm ? 'Cancel' : 'Import Teachers from Excel'}
+          </button>
         </div>
-      )}
+      </div>
+    
+    {error && (
+      <div className="alert alert-danger" role="alert">
+        {error}
+      </div>
+    )}
       
+      {showImportForm && (
+         <div className="card mb-4">
+           <div className="card-header">
+              <h5 className="mb-0">Import Teachers from Excel</h5>
+        </div>
+             <div className="card-body">
+                 <input 
+                    type="file" 
+                    accept=".xlsx, .xls" 
+                    className="form-control mb-3" 
+                    onChange={handleExcelUpload} 
+                    />
+                   <p className="text-muted">
+                  Upload an Excel file with columns: <strong>id</strong>, <strong>name</strong>, <strong>department</strong>, and optional <strong>photo_url</strong>.
+                   </p>
+        </div>
+      </div>
+)}
       {showAddForm && (
         <div className="card mb-4">
           <div className="card-header">
             <h5 className="mb-0">Add New Teacher</h5>
           </div>
+          <div className="card mb-4">
+            <div className="card-header">
+        </div>
+        </div>
           <div className="card-body">
             <form onSubmit={handleAddSubmit}>
               <div className="row">
