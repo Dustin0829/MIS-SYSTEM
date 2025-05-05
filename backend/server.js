@@ -7,10 +7,19 @@ const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
+const fs = require('fs');
+const { exec } = require('child_process');
 
 // Database configuration
 const dbPath = process.env.DATABASE_PATH || path.join(__dirname, 'database.sqlite');
 console.log('Using database at:', dbPath);
+
+// Create a single uploads directory for all teachers if it doesn't exist
+const uploadsDir = path.join(__dirname, 'uploads', 'teachers');
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+  console.log('Created uploads directory for teachers at:', uploadsDir);
+}
 
 // JWT configuration
 const JWT_SECRET = process.env.JWT_SECRET || 'your_secret_key_here';
@@ -165,6 +174,9 @@ const db = new sqlite3.Database(dbPath, (err) => {
           console.log('Sample keys created');
         }
       });
+
+      // Set up file watcher after database is initialized
+      setupTeacherFolderWatcher();
     });
   }
 });
@@ -175,6 +187,9 @@ const PORT = process.env.PORT || 5123;
 
 // Serve static files from public directory
 app.use(express.static('public'));
+
+// Serve uploaded files from the uploads directory
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // CORS configuration
 app.use(cors({
@@ -244,6 +259,130 @@ const authorizeAdmin = (req, res, next) => {
   }
   next();
 };
+
+// Process an image file found in teachers directory
+const processTeacherImage = (filename) => {
+  // Only process image files
+  const allowedExtensions = ['.jpg', '.jpeg', '.png', '.gif'];
+  const ext = path.extname(filename).toLowerCase();
+  
+  if (!allowedExtensions.includes(ext)) {
+    console.log(`Skipping non-image file: ${filename}`);
+    return;
+  }
+  
+  // Extract teacher ID from filename (new format: teacherId.jpg)
+  // For example: 123.jpg -> teacherId = 123 or CLN0526A.jpg -> teacherId = CLN0526A
+  const filenameWithoutExt = path.basename(filename, ext);
+  
+  // The filename should now be just the teacher ID
+  const teacherId = filenameWithoutExt;
+  
+  // Check if the ID appears to be valid (allow alphanumeric characters)
+  if (!/^[a-zA-Z0-9]+$/.test(teacherId)) {
+    console.log(`Invalid teacher ID in filename: ${filename}. Filename should only contain letters and numbers.`);
+    return;
+  }
+  
+  console.log(`Processing image for teacher ID: ${teacherId}`);
+  
+  // Full path to the image
+  const imagePath = path.join(uploadsDir, filename);
+  
+  // Relative path for URL (this is what we'll store in the database)
+  const relativePath = `/uploads/teachers/${filename}`;
+  
+  // Check if the teacher exists in the database
+  db.get("SELECT id, name, department FROM teachers WHERE id = ?", [teacherId], (err, teacher) => {
+    if (err) {
+      console.error(`Error checking teacher ${teacherId}:`, err);
+      return;
+    }
+    
+    if (teacher) {
+      // Teacher exists, update the photo URL
+      db.run(
+        "UPDATE teachers SET photo_url = ? WHERE id = ?",
+        [relativePath, teacherId],
+        (err) => {
+          if (err) {
+            console.error(`Error updating photo for teacher ${teacherId}:`, err);
+          } else {
+            console.log(`Updated photo for teacher ${teacherId} (${teacher.name}) to ${relativePath}`);
+          }
+        }
+      );
+    } else {
+      // Teacher doesn't exist yet, but we have their photo
+      // Just store the photo URL with a placeholder name - proper details can be added later via Excel
+      db.run(
+        "INSERT INTO teachers (id, name, department, photo_url) VALUES (?, ?, ?, ?)",
+        [teacherId, `Teacher ${teacherId}`, 'Unknown Department', relativePath],
+        (err) => {
+          if (err) {
+            console.error(`Error creating teacher record for ID ${teacherId}:`, err);
+          } else {
+            console.log(`Created placeholder record for teacher ID ${teacherId} with photo ${relativePath}`);
+          }
+        }
+      );
+    }
+  });
+};
+
+// Scan directory for existing teacher images and process them
+const scanTeacherDirectory = () => {
+  console.log(`Scanning teachers directory for existing images: ${uploadsDir}`);
+  try {
+    fs.readdir(uploadsDir, (err, files) => {
+      if (err) {
+        console.error('Error reading teachers directory:', err);
+        return;
+      }
+      
+      // Filter for image files
+      const allowedExtensions = ['.jpg', '.jpeg', '.png', '.gif'];
+      const imageFiles = files.filter(file => {
+        const ext = path.extname(file).toLowerCase();
+        return allowedExtensions.includes(ext);
+      });
+      
+      console.log(`Found ${imageFiles.length} images in teachers directory`);
+      
+      // Process each file
+      imageFiles.forEach(file => {
+        console.log(`Processing existing teacher image: ${file}`);
+        processTeacherImage(file);
+      });
+    });
+  } catch (error) {
+    console.error('Error scanning teachers directory:', error);
+  }
+};
+
+// Setup a file watcher for the teachers uploads directory
+const setupTeacherFolderWatcher = () => {
+  // Watch the main uploads directory for changes
+  fs.watch(uploadsDir, (eventType, filename) => {
+    if (eventType === 'rename' && filename) {
+      // A new file was added or a file was deleted
+      const filePath = path.join(uploadsDir, filename);
+      
+      // Check if the file exists (to distinguish between add and delete)
+      if (fs.existsSync(filePath)) {
+        console.log(`New file detected in teachers folder: ${filename}`);
+        processTeacherImage(filename);
+      }
+    }
+  });
+  
+  console.log(`Set up file watcher for teachers uploads directory: ${uploadsDir}`);
+};
+
+// Set up file watcher after database is initialized
+setupTeacherFolderWatcher();
+// Scan existing teacher images
+scanTeacherDirectory();
 
 // Root route
 app.get('/', (req, res) => {
@@ -397,24 +536,81 @@ app.get('/api/teachers/verify/:id', async (req, res) => {
     const teacherId = req.params.id;
     console.log(`Verifying teacher ID: ${teacherId}`);
     
+    // Check if teacher exists in database
     db.get("SELECT id, name, department, photo_url FROM teachers WHERE id = ?", [teacherId], (err, teacher) => {
       if (err) {
         console.error('Database error:', err);
         return res.status(500).json({ error: 'Database error' });
       }
       
-      if (!teacher) {
-        return res.json({ success: false, message: 'Teacher not found' });
-    }
-    
-    res.json({
-        success: true, 
-        teacher: {
-          id: teacher.id,
-          name: teacher.name,
-          department: teacher.department,
-          photo_url: teacher.photo_url
+      // If teacher exists in database, return that information
+      if (teacher) {
+        return res.json({
+          success: true, 
+          teacher: {
+            id: teacher.id,
+            name: teacher.name,
+            department: teacher.department,
+            photo_url: teacher.photo_url,
+            source: 'database'
+          }
+        });
+      }
+      
+      // If teacher doesn't exist in database, check the uploads folder
+      const teacherDir = path.join(uploadsDir);
+      
+      // Read all files in the uploads directory
+      fs.readdir(teacherDir, (err, files) => {
+        if (err) {
+          console.error('Error reading uploads directory:', err);
+          return res.json({ success: false, message: 'Teacher not found' });
         }
+        
+        // Find files with matching ID (filename should be just the ID with extension)
+        const teacherFiles = files.filter(file => {
+          const filename = path.parse(file).name; // Get filename without extension
+          return filename === teacherId;
+        });
+        
+        if (teacherFiles.length === 0) {
+          // No matching files found
+          return res.json({ success: false, message: 'Teacher not found' });
+        }
+        
+        // Get the first matching file
+        const teacherFile = teacherFiles[0];
+        
+        // Create a photo URL for the file
+        const photoUrl = `/uploads/teachers/${teacherFile}`;
+        
+        // Create a placeholder teacher object
+        const teacherFromFile = {
+          id: teacherId,
+          name: `Teacher ${teacherId}`,
+          department: 'Unknown Department',
+          photo_url: photoUrl,
+          source: 'file'
+        };
+        
+        // Create this teacher in the database as a placeholder
+        db.run(
+          "INSERT OR IGNORE INTO teachers (id, name, department, photo_url) VALUES (?, ?, ?, ?)",
+          [teacherId, teacherFromFile.name, teacherFromFile.department, photoUrl],
+          (err) => {
+            if (err) {
+              console.error('Error creating placeholder teacher record:', err);
+            } else {
+              console.log(`Created placeholder record for teacher ID ${teacherId} with photo ${photoUrl}`);
+            }
+          }
+        );
+        
+        // Return the teacher information
+        return res.json({
+          success: true,
+          teacher: teacherFromFile
+        });
       });
     });
   } catch (error) {
@@ -1115,6 +1311,112 @@ app.get('/api/health', (req, res) => {
     status: 'ok', 
       timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV || 'development'
+  });
+});
+
+// Endpoint to open a folder - useful for the import feature
+app.post('/api/open-folder', authenticateToken, (req, res) => {
+  const { path: folderPath } = req.body;
+  
+  if (!folderPath) {
+    return res.status(400).json({ error: 'Folder path is required' });
+  }
+  
+  console.log(`Attempting to open folder: ${folderPath}`);
+  
+  // Check if folder exists
+  if (!fs.existsSync(folderPath)) {
+    return res.status(404).json({ error: 'Folder not found' });
+  }
+  
+  // Open folder based on OS
+  const platform = process.platform;
+  let command;
+  
+  if (platform === 'darwin') {
+    // macOS
+    command = `open "${folderPath}"`;
+  } else if (platform === 'win32') {
+    // Windows
+    command = `explorer "${folderPath}"`;
+  } else if (platform === 'linux') {
+    // Linux
+    command = `xdg-open "${folderPath}"`;
+  } else {
+    return res.status(400).json({ error: 'Unsupported platform' });
+  }
+  
+  exec(command, (error, stdout, stderr) => {
+    if (error) {
+      console.error(`Error opening folder: ${error}`);
+      return res.status(500).json({ error: `Failed to open folder: ${error.message}` });
+    }
+    
+    console.log(`Folder opened successfully: ${folderPath}`);
+    res.json({ success: true, message: 'Folder opened successfully' });
+  });
+});
+
+// Route to manually create or ensure a teacher's upload folder exists
+app.post('/api/teachers/:teacherId/ensure-folder', authenticateToken, (req, res) => {
+  const { teacherId } = req.params;
+  
+  // First check if this teacher exists
+  db.get("SELECT id FROM teachers WHERE id = ?", [teacherId], (err, teacher) => {
+    if (err) {
+      console.error('Error checking teacher existence:', err);
+      return res.status(500).json({ error: 'Database error' });
+    }
+    
+    if (!teacher) {
+      return res.status(404).json({ error: 'Teacher not found' });
+    }
+    
+    // Return the upload information
+    res.json({
+      success: true,
+      teacherId,
+      uploadPath: uploadsDir,
+      filenameFormat: `${teacherId}_filename.jpg`,
+      uploadInstructions: `Place image files in the teachers folder with filename format: ${teacherId}_filename.jpg`
+    });
+  });
+});
+
+// General endpoint for getting the upload path information
+app.get('/api/teachers/upload-path', authenticateToken, (req, res) => {
+  // Return the upload path information
+  res.json({
+    success: true,
+    uploadPath: uploadsDir,
+    filenameFormat: "teacherId_filename.jpg",
+    uploadInstructions: "Place image files in the teachers folder with filename format: teacherId_filename.jpg"
+  });
+});
+
+// Route to get a teacher's upload folder path
+app.get('/api/teachers/:teacherId/upload-path', authenticateToken, (req, res) => {
+  const { teacherId } = req.params;
+  
+  // First check if this teacher exists
+  db.get("SELECT id FROM teachers WHERE id = ?", [teacherId], (err, teacher) => {
+    if (err) {
+      console.error('Error checking teacher existence:', err);
+      return res.status(500).json({ error: 'Database error' });
+    }
+    
+    if (!teacher) {
+      return res.status(404).json({ error: 'Teacher not found' });
+    }
+    
+    // Return the upload path information
+    res.json({
+      success: true,
+      teacherId,
+      uploadPath: uploadsDir,
+      filenameFormat: `${teacherId}_filename.jpg`,
+      uploadInstructions: `Place image files in the teachers folder with filename format: ${teacherId}_filename.jpg`
+    });
   });
 });
 

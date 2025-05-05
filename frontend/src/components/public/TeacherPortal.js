@@ -123,7 +123,8 @@ const TeacherPortal = () => {
               id: response.teacher.id,
               name: response.teacher.name,
               department: response.teacher.department,
-              photoUrl: response.teacher.photo_url || 'https://via.placeholder.com/150'
+              photoUrl: response.teacher.photo_url || 'https://via.placeholder.com/150',
+              source: response.teacher.source || 'database'
             });
           } else {
             setTeacherInfo(null);
@@ -238,24 +239,21 @@ const TeacherPortal = () => {
 
   return (
     <div className="container py-5">
-    <div className="text-center mb-4">
-    <h1
-        className="fw-bold"
-        style={{
-        color: '#FFFFFF',
-        textShadow: '1px 1px 2px black',
-  }}
->
-  STI Laboratory Key Portal
-</h1>
+      <div className="text-center mb-4">
+        <h1
+          className="fw-bold"
+          style={{
+            color: '#FFFFFF',
+            textShadow: '1px 1px 2px black',
+          }}
+        >
+          STI Laboratory Key Portal
+        </h1>
       </div>
-    <div className="row justify-content-center align-items-start">
-    <div className="col-md-8">
-    <div className="d-flex align-items-start">
-    <div className="d-flex align-items-stretch">
       
-   
-      <div className="me-3" style={{ width: '500px' }}>
+      <div className="row">
+        {/* Main Form Section */}
+        <div className="col-lg-8 mb-4">
           <div className="card shadow-lg h-100" style={{ background: 'rgba(255, 255, 255, 0.95)' }}>
             <div className="card-header bg-primary text-white">
               <ul className="nav nav-tabs card-header-tabs">
@@ -283,22 +281,32 @@ const TeacherPortal = () => {
                   {error}
                 </div>
               )}
-              <div className="mb-5">
-                <label htmlFor="teacherId" className="form-label">Teacher ID</label>
-                <input
-                  type="text"
-                  className="form-control"
-                  id="teacherId"
-                  value={teacherId}
-                  onChange={handleTeacherIdChange}
-                  placeholder="Enter your Teacher ID"
-                  required
-                />
+              <div className="mb-4">
+                <label htmlFor="teacherId" className="form-label fw-bold">Teacher ID</label>
+                <div className="input-group mb-3">
+                  <input
+                    type="text"
+                    className="form-control"
+                    id="teacherId"
+                    value={teacherId}
+                    onChange={handleTeacherIdChange}
+                    placeholder="Enter your Teacher ID"
+                    required
+                  />
+                  {loading && (
+                    <span className="input-group-text">
+                      <div className="spinner-border spinner-border-sm" role="status">
+                        <span className="visually-hidden">Loading...</span>
+                      </div>
+                    </span>
+                  )}
+                </div>
               </div>
+              
               {activeTab === 'borrow' ? (
                 <form onSubmit={handleBorrow}>
                   <div className="mb-3">
-                    <label htmlFor="keySelect" className="form-label">Select Key to Borrow</label>
+                    <label htmlFor="keySelect" className="form-label fw-bold">Select Key to Borrow</label>
                     <select
                       className="form-select"
                       id="keySelect"
@@ -316,16 +324,23 @@ const TeacherPortal = () => {
                   </div>
                   <button
                     type="submit"
-                    className="btn btn-primary w-100"
-                    disabled={loading || !teacherId || !selectedKey}
+                    className="btn btn-primary w-100 mt-4"
+                    disabled={loading || !teacherId || !selectedKey || !teacherInfo}
                   >
-                    {loading ? 'Processing...' : 'Borrow Key'}
+                    {loading ? (
+                      <>
+                        <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                        Processing...
+                      </>
+                    ) : (
+                      'Borrow Key'
+                    )}
                   </button>
                 </form>
               ) : (
                 <form onSubmit={handleReturn}>
                   <div className="mb-3">
-                    <label htmlFor="returnKeySelect" className="form-label">Select Key to Return</label>
+                    <label htmlFor="returnKeySelect" className="form-label fw-bold">Select Key to Return</label>
                     <select
                       className="form-select"
                       id="returnKeySelect"
@@ -345,10 +360,17 @@ const TeacherPortal = () => {
                   </div>
                   <button
                     type="submit"
-                    className="btn btn-success w-100"
-                    disabled={loading || !teacherId || !selectedKey}
+                    className="btn btn-success w-100 mt-4"
+                    disabled={loading || !teacherId || !selectedKey || !teacherInfo}
                   >
-                    {loading ? 'Processing...' : 'Return Key'}
+                    {loading ? (
+                      <>
+                        <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                        Processing...
+                      </>
+                    ) : (
+                      'Return Key'
+                    )}
                   </button>
                 </form>
               )}
@@ -356,33 +378,76 @@ const TeacherPortal = () => {
           </div>
         </div>
 
-        {/* Teacher Information */}
-        {teacherInfo && (
-          <div className="card shadow-lg" style={{ width: '300px', background: 'rgba(255, 255, 255, 0.95)' }}>
-            <div className="card-header bg-primary text-white">
-              <h5 className="mb-0">Teacher Information</h5>
+        {/* Teacher Information Card */}
+        <div className="col-lg-4">
+          {teacherInfo ? (
+            <div className="card shadow-lg h-100" style={{ background: 'rgba(255, 255, 255, 0.95)' }}>
+              <div className="card-header bg-primary text-white">
+                <h5 className="mb-0">Teacher Information</h5>
+              </div>
+              <div className="card-body p-3 text-center">
+                <div className="teacher-photo-container mb-3" style={{ 
+                  height: '250px', 
+                  display: 'flex', 
+                  justifyContent: 'center', 
+                  alignItems: 'center', 
+                  overflow: 'hidden',
+                  border: '1px solid #dee2e6',
+                  borderRadius: '4px' 
+                }}>
+                  <img
+                    src={teacherInfo.photoUrl}
+                    alt="Teacher"
+                    className="img-fluid"
+                    style={{ 
+                      maxHeight: '100%', 
+                      maxWidth: '100%', 
+                      objectFit: 'contain' 
+                    }}
+                    onError={(e) => {
+                      e.target.onerror = null;
+                      e.target.src = 'https://via.placeholder.com/300x400?text=No+Photo';
+                    }}
+                  />
+                </div>
+                <div className="teacher-id-card p-2 border rounded bg-light">
+                  <h5 className="card-title fw-bold mb-3">{teacherInfo.name}</h5>
+                  <div className="d-flex justify-content-between mb-2">
+                    <strong>ID:</strong>
+                    <span>{teacherInfo.id}</span>
+                  </div>
+                  <div className="d-flex justify-content-between mb-2">
+                    <strong>Department:</strong>
+                    <span>{teacherInfo.department || 'N/A'}</span>
+                  </div>
+                  <div className="d-flex justify-content-between">
+                    <strong>Date:</strong>
+                    <span>{new Date().toLocaleDateString()}</span>
+                  </div>
+                </div>
+              </div>
+              <div className="card-footer bg-light">
+                <div className="d-flex justify-content-between align-items-center">
+                  <small className="text-muted">Verified ✓</small>
+                  <span className={`badge ${teacherInfo.source === 'file' ? 'bg-info' : 'bg-success'}`}>
+                    {teacherInfo.source === 'file' ? 'Auto-Generated' : 'Authorized'}
+                  </span>
+                </div>
+              </div>
             </div>
-            <div className="card-body text-center">
-              <img
-                src={teacherInfo.photoUrl}
-                alt="Teacher"
-                className="img-fluid rounded mb-3"
-                style={{ maxHeight: '300px' }}
-              />
-              <h5 className="card-title">{teacherInfo.name}</h5>
-              <p className="mb-1"><strong>ID:</strong> {teacherInfo.id}</p>
-              <p className="mb-1"><strong>Department:</strong> {teacherInfo.department}</p>
-              <p className="mb-0"><strong>Date:</strong> {new Date().toLocaleDateString()}</p>
+          ) : (
+            <div className="card shadow-lg h-100 bg-light">
+              <div className="card-body d-flex flex-column justify-content-center align-items-center text-center p-4">
+                <i className="bi bi-person-badge" style={{ fontSize: '4rem', color: '#ccc' }}></i>
+                <h5 className="mt-3">Teacher Verification</h5>
+                <p className="text-muted">Enter a valid Teacher ID to display information</p>
+              </div>
             </div>
-          </div>
-        )}
+          )}
         </div>
       </div>
     </div>
-  </div>
-</div>
-
-);
+  );
 };
 
 export default TeacherPortal; 

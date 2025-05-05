@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { toast } from 'react-toastify';
-import { getTeachers, addTeacher, updateTeacher, deleteTeacher } from '../../services/api';
+import { getTeachers, addTeacher, updateTeacher, deleteTeacher, getTeacherUploadPath } from '../../services/api';
 
 // Importing teacher by Excel file
 import * as XLSX from 'xlsx';
@@ -9,6 +9,7 @@ import * as XLSX from 'xlsx';
 const TeacherManagement = () => {
   // Importing teacher by Excel file
   const [showImportForm, setShowImportForm] = useState(false);
+  const [activeTab, setActiveTab] = useState('excel'); // Default to Excel tab
 
   const [teachers, setTeachers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -25,6 +26,12 @@ const TeacherManagement = () => {
   const [editingTeacherId, setEditingTeacherId] = useState(null);
   const [photoFile, setPhotoFile] = useState(null);
   const [photoPreview, setPhotoPreview] = useState(null);
+  const [uploadPathInfo, setUploadPathInfo] = useState(null);
+
+  // Handle tab switching
+  const handleTabChange = (tab) => {
+    setActiveTab(tab);
+  };
 
   const fetchTeachers = async () => {
     try {
@@ -41,6 +48,14 @@ const TeacherManagement = () => {
 
   useEffect(() => {
     fetchTeachers();
+    // Fetch upload path information
+    getTeacherUploadPath()
+      .then(data => {
+        setUploadPathInfo(data);
+      })
+      .catch(err => {
+        console.error("Failed to get upload path information:", err);
+      });
   }, []);
 
   const handleChange = (e) => {
@@ -211,6 +226,7 @@ const TeacherManagement = () => {
     setPhotoFile(null);
     setShowEditForm(true);
     setShowAddForm(false);
+    setShowImportForm(false);
   };
 
   if (loading && teachers.length === 0) {
@@ -224,6 +240,35 @@ const TeacherManagement = () => {
     );
   }
 
+  // Open the Teachers folder directly
+  const openTeachersFolder = async () => {
+    try {
+      // Make a backend request to open the folder
+      const response = await fetch('/api/open-folder', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        },
+        body: JSON.stringify({ path: '/Users/MacBook/Desktop/Teachers' }),
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to open folder');
+      }
+      
+      toast.info("Opening Teachers folder...");
+    } catch (error) {
+      console.error("Error opening folder:", error);
+      
+      // Fallback: Just inform the user where to find the folder
+      toast.info("Please open the folder at: /Users/MacBook/Desktop/Teachers");
+      
+      // On macOS, we can try to open using the Finder
+      window.open('file:///Users/MacBook/Desktop/Teachers');
+    }
+  };
+
   // Function for importing teacher by Excel file
   const handleExcelUpload = (e) => {
     const file = e.target.files[0];
@@ -231,32 +276,57 @@ const TeacherManagement = () => {
   
     const reader = new FileReader();
     reader.onload = async (event) => {
-      const data = new Uint8Array(event.target.result);
-      const workbook = XLSX.read(data, { type: "array" });
-      const sheetName = workbook.SheetNames[0];
-      const worksheet = workbook.Sheets[sheetName];
-      const jsonData = XLSX.utils.sheet_to_json(worksheet);
-  
-      // Optional: validate data
-      const validData = jsonData.filter(row => row.id && row.name);
-  
       try {
-        for (const teacher of validData) {
-          await addTeacher({
-            id: teacher.id,
-            name: teacher.name,
-            department: teacher.department || '',
-            photo_url: teacher.photo_url || ''
-          });
+        // Process Excel file
+        const data = new Uint8Array(event.target.result);
+        const workbook = XLSX.read(data, { type: "array" });
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+        const jsonData = XLSX.utils.sheet_to_json(worksheet);
+        
+        if (jsonData.length === 0) {
+          toast.warning("No data found in the Excel file.");
+          return;
         }
-        toast.success("Teachers imported successfully!");
+    
+        toast.info(`Processing ${jsonData.length} teachers from Excel...`);
+        
+        // Validate data
+        const validData = jsonData.filter(row => row.id && row.name);
+        
+        if (validData.length < jsonData.length) {
+          toast.warning(`${jsonData.length - validData.length} records were skipped due to missing ID or name.`);
+        }
+    
+        // Process each valid teacher
+        let successCount = 0;
+        for (const teacher of validData) {
+          try {
+            await addTeacher({
+              id: teacher.id,
+              name: teacher.name,
+              department: teacher.department || '',
+              photo_url: teacher.photo_url || ''
+            });
+            successCount++;
+          } catch (err) {
+            console.error(`Error importing teacher ${teacher.id}:`, err);
+          }
+        }
+        
+        toast.success(`Successfully imported ${successCount} teachers!`);
         fetchTeachers();
-        setShowImportForm(false);
       } catch (err) {
-        console.error("Import error:", err);
-        toast.error("Failed to import teachers.");
+        console.error("Excel import error:", err);
+        toast.error("Failed to import from Excel: " + err.message);
       }
     };
+    
+    reader.onerror = (error) => {
+      console.error("File reading error:", error);
+      toast.error("Error reading Excel file.");
+    };
+    
     reader.readAsArrayBuffer(file);
   };
 
@@ -276,13 +346,16 @@ const TeacherManagement = () => {
             {showAddForm ? 'Cancel' : 'Add New Teacher'}
           </button>
           <button 
-            className="btn btn-secondary" 
+            className="btn btn-warning fw-bold"
             onClick={() => {
               setShowImportForm(!showImportForm);
-              setShowAddForm(false); // close add form if switching
+              setShowAddForm(false);
+              setShowEditForm(false);
             }}
+            style={{ display: 'flex', alignItems: 'center', gap: '5px' }}
           >
-            {showImportForm ? 'Cancel' : 'Import Teachers from Excel'}
+            <i className="bi bi-file-earmark-spreadsheet"></i>
+            {showImportForm ? 'Close Import' : 'Import'}
           </button>
         </div>
       </div>
@@ -294,32 +367,158 @@ const TeacherManagement = () => {
     )}
       
       {showImportForm && (
-         <div className="card mb-4">
-           <div className="card-header">
-              <h5 className="mb-0">Import Teachers from Excel</h5>
-        </div>
-             <div className="card-body">
-                 <input 
-                    type="file" 
-                    accept=".xlsx, .xls" 
-                    className="form-control mb-3" 
-                    onChange={handleExcelUpload} 
-                    />
-                   <p className="text-muted">
-                  Upload an Excel file with columns: <strong>id</strong>, <strong>name</strong>, <strong>department</strong>, and optional <strong>photo_url</strong>.
-                   </p>
-        </div>
-      </div>
-)}
+         <div className="card mb-4 border-warning">
+           <div className="card-header bg-warning bg-opacity-25 d-flex justify-content-between align-items-center">
+              <h5 className="mb-0">Import Teachers</h5>
+           </div>
+           <div className="card-body">
+             <ul className="nav nav-tabs" id="importTabs" role="tablist">
+               <li className="nav-item" role="presentation">
+                 <button 
+                   className={`nav-link ${activeTab === 'excel' ? 'active' : ''}`} 
+                   id="excel-tab" 
+                   onClick={() => handleTabChange('excel')}
+                   type="button" 
+                   role="tab" 
+                   aria-controls="excel" 
+                   aria-selected={activeTab === 'excel'}
+                 >
+                   <i className="bi bi-file-earmark-spreadsheet me-1"></i> Excel Import
+                 </button>
+               </li>
+               <li className="nav-item" role="presentation">
+                 <button 
+                   className={`nav-link ${activeTab === 'photos' ? 'active' : ''}`} 
+                   id="photos-tab" 
+                   onClick={() => handleTabChange('photos')}
+                   type="button" 
+                   role="tab" 
+                   aria-controls="photos" 
+                   aria-selected={activeTab === 'photos'}
+                 >
+                   <i className="bi bi-folder-fill me-1"></i> Photo Directory
+                 </button>
+               </li>
+             </ul>
+             
+             <div className="tab-content p-3 border border-top-0 rounded-bottom" id="importTabsContent">
+               {/* Excel Import Tab */}
+               <div 
+                 className={`tab-pane fade ${activeTab === 'excel' ? 'show active' : ''}`} 
+                 id="excel" 
+                 role="tabpanel" 
+                 aria-labelledby="excel-tab"
+               >
+                 <div className="row">
+                   <div className="col-md-6">
+                     <h5 className="mb-3">Batch Import via Excel</h5>
+                     <div className="mb-3">
+                       <label className="btn btn-primary d-flex align-items-center justify-content-center gap-2" style={{ maxWidth: '250px' }}>
+                         <i className="bi bi-file-earmark-spreadsheet"></i> Select Excel File
+                         <input
+                           type="file"
+                           accept=".xlsx, .xls"
+                           style={{ display: 'none' }}
+                           onChange={handleExcelUpload}
+                         />
+                       </label>
+                     </div>
+                     <div className="alert alert-info mt-3">
+                       <i className="bi bi-info-circle me-2"></i>
+                       <span>Use Excel for batch importing multiple teachers at once.</span>
+                     </div>
+                   </div>
+                   <div className="col-md-6">
+                     <h5 className="mb-3">Required Excel Format</h5>
+                     <div className="table-responsive">
+                       <table className="table table-bordered table-sm">
+                         <thead className="table-light">
+                           <tr>
+                             <th>id</th>
+                             <th>name</th>
+                             <th>department</th>
+                             <th>photo_url (optional)</th>
+                           </tr>
+                         </thead>
+                         <tbody>
+                           <tr>
+                             <td>1001</td>
+                             <td>John Smith</td>
+                             <td>Mathematics</td>
+                             <td></td>
+                           </tr>
+                           <tr>
+                             <td>1002</td>
+                             <td>Jane Doe</td>
+                             <td>Science</td>
+                             <td></td>
+                           </tr>
+                         </tbody>
+                       </table>
+                     </div>
+                     <small className="text-muted">Headers must match exactly as shown above.</small>
+                   </div>
+                 </div>
+               </div>
+               
+               {/* Photos Directory Tab */}
+               <div 
+                 className={`tab-pane fade ${activeTab === 'photos' ? 'show active' : ''}`} 
+                 id="photos" 
+                 role="tabpanel" 
+                 aria-labelledby="photos-tab"
+               >
+                 <div className="card border-0 mb-4 shadow-sm rounded-3">
+                   <div className="card-body p-5 text-center">
+                     <div className="mb-3">
+                       <button 
+                         className="btn px-5 py-3 d-flex align-items-center gap-3 mx-auto shadow rounded-pill"
+                         onClick={openTeachersFolder}
+                         style={{
+                           background: "linear-gradient(135deg, #4b6cb7 0%, #182848 100%)",
+                           color: "white",
+                           transition: "all 0.3s ease",
+                         }}
+                         onMouseOver={(e) => {
+                           e.currentTarget.style.transform = "translateY(-2px)";
+                           e.currentTarget.style.boxShadow = "0 8px 15px rgba(0, 0, 0, 0.2)";
+                         }}
+                         onMouseOut={(e) => {
+                           e.currentTarget.style.transform = "translateY(0)";
+                           e.currentTarget.style.boxShadow = "0 4px 6px rgba(0, 0, 0, 0.1)";
+                         }}
+                       >
+                         <i className="bi bi-folder-fill fs-4"></i> 
+                         <span className="fw-semibold fs-5">Open Teachers Folder</span>
+                       </button>
+                       <div className="mt-3 text-muted">
+                         <small className="d-block">
+                           Default location: <span className="font-monospace bg-light px-2 py-1 rounded">/Users/MacBook/Desktop/Teachers</span>
+                         </small>
+                       </div>
+                     </div>
+                   </div>
+                 </div>
+
+                 <div className="alert alert-info bg-info bg-opacity-10 border-start border-info border-4 d-flex align-items-center my-4" role="alert">
+                   <div className="rounded-circle bg-info p-2 d-flex align-items-center justify-content-center me-3" style={{width: "40px", height: "40px"}}>
+                     <i className="bi bi-info-circle-fill text-white fs-5"></i>
+                   </div>
+                   <div>
+                     <strong className="text-info">Important:</strong> The ID in the filename must match a teacher ID in your data to connect properly.
+                     <p className="mb-0 mt-1">Use format: <span className="font-monospace bg-dark text-light px-2 py-1 rounded">TeacherID.jpg</span> (Examples: <span className="text-primary font-monospace">123.jpg</span> or <span className="text-primary font-monospace">CLN0526A.jpg</span>)</p>
+                   </div>
+                 </div>
+               </div>
+             </div>
+           </div>
+         </div>
+      )}
       {showAddForm && (
         <div className="card mb-4">
           <div className="card-header">
             <h5 className="mb-0">Add New Teacher</h5>
           </div>
-          <div className="card mb-4">
-            <div className="card-header">
-        </div>
-        </div>
           <div className="card-body">
             <form onSubmit={handleAddSubmit}>
               <div className="row">

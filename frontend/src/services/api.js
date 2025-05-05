@@ -195,6 +195,17 @@ export const deleteTeacher = async (id) => {
   }
 };
 
+// Get upload path for teacher photos
+export const getTeacherUploadPath = async () => {
+  try {
+    const response = await api.get('/teachers/upload-path');
+    return response.data;
+  } catch (error) {
+    console.error('Error getting teacher upload path:', error);
+    throw error.toString();
+  }
+};
+
 export const addTeacher = createTeacher; // Alias for createTeacher
 
 // Key management

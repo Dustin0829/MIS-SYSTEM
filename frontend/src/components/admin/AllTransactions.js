@@ -10,6 +10,9 @@ const AllTransactions = () => {
   const [error, setError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
+  const [showPreview, setShowPreview] = useState(false);
+  const [previewData, setPreviewData] = useState([]);
+  const [fileName, setFileName] = useState('transactions.xlsx');
 
   useEffect(() => {
     const fetchTransactions = async () => {
@@ -58,11 +61,10 @@ const AllTransactions = () => {
     setFilteredTransactions(filtered);
   }, [searchTerm, filterStatus, transactions]);
 
-  // Function to export transactions to XLSX (Excel) format
-  // This function will create an XLSX file from the filtered transactions and trigger a download
-  const exportXLSX = () => {
+  // Prepare data for export or preview
+  const prepareExportData = () => {
     const now = new Date();
-    const rows = filteredTransactions.map(transaction => {
+    return filteredTransactions.map(transaction => {
       const borrowDate = new Date(transaction.borrowDate);
       const returnDate = transaction.returnDate ? new Date(transaction.returnDate) : null;
       const isActive = !returnDate;
@@ -97,6 +99,18 @@ const AllTransactions = () => {
         Duration: duration,
       };
     });
+  };
+
+  // Function to show export preview
+  const showExportPreview = () => {
+    const exportData = prepareExportData();
+    setPreviewData(exportData);
+    setShowPreview(true);
+  };
+
+  // Function to export transactions to XLSX (Excel) format
+  const exportXLSX = () => {
+    const rows = previewData.length > 0 ? previewData : prepareExportData();
   
     const worksheet = XLSX.utils.json_to_sheet(rows);
     const workbook = XLSX.utils.book_new();
@@ -104,7 +118,8 @@ const AllTransactions = () => {
   
     const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
     const blob = new Blob([excelBuffer], { type: 'application/octet-stream' });
-    saveAs(blob, 'LebronJamesLoveCurry.xlsx');
+    saveAs(blob, fileName);
+    setShowPreview(false);
   };
 
   if (loading) { 
@@ -129,6 +144,60 @@ const AllTransactions = () => {
   return (
     <div>
       <h2 className="mb-4">All Transactions</h2>
+      
+      {/* Preview Modal */}
+      {showPreview && (
+        <div className="modal d-block" tabIndex="-1" style={{backgroundColor: 'rgba(0,0,0,0.5)'}}>
+          <div className="modal-dialog modal-dialog-centered modal-xl">
+            <div className="modal-content">
+              <div className="modal-header">
+                <h5 className="modal-title">Export Preview</h5>
+                <button type="button" className="btn-close" onClick={() => setShowPreview(false)}></button>
+              </div>
+              <div className="modal-body">
+                <div className="mb-3">
+                  <label htmlFor="fileName" className="form-label">File Name</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    id="fileName"
+                    value={fileName}
+                    onChange={(e) => setFileName(e.target.value)}
+                  />
+                </div>
+                <div className="table-responsive" style={{maxHeight: '400px', overflowY: 'auto'}}>
+                  <table className="table table-sm table-bordered table-hover">
+                    <thead className="sticky-top bg-light">
+                      <tr>
+                        {previewData.length > 0 && Object.keys(previewData[0]).map((header, index) => (
+                          <th key={index}>{header}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {previewData.map((row, rowIndex) => (
+                        <tr key={rowIndex}>
+                          {Object.values(row).map((cell, cellIndex) => (
+                            <td key={cellIndex}>{cell}</td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="btn btn-secondary" onClick={() => setShowPreview(false)}>
+                  Cancel
+                </button>
+                <button type="button" className="btn btn-success" onClick={exportXLSX}>
+                  <i className="bi bi-download"></i> Download XLSX
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       
       <div className="card mb-4">
         <div className="card-body">
@@ -162,10 +231,10 @@ const AllTransactions = () => {
           
           <div className="d-flex justify-content-end mt-3">
             <button 
-                className="btn btn-success ms-2" 
-                onClick={exportXLSX}
+                className="btn btn-primary ms-2" 
+                onClick={showExportPreview}
             >
-               <i className="bi bi-file-earmark-excel"></i> Export XLSX
+               <i className="bi bi-file-earmark-excel"></i> Export Transactions
             </button>
           </div>
         </div>

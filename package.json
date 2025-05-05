@@ -1,6 +1,26 @@
 {
   "dependencies": {
+    "file-saver": "^2.0.5",
     "jspdf": "^3.0.1",
-    "jspdf-autotable": "^5.0.2"
-  }
+    "jspdf-autotable": "^5.0.2",
+    "xlsx": "^0.18.5"
+  },
+  "name": "karl",
+  "version": "1.0.0",
+  "description": "mis-system # MIS-SYSTEM",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/worjiee/MIS-SYSTEM.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/worjiee/MIS-SYSTEM/issues"
+  },
+  "homepage": "https://github.com/worjiee/MIS-SYSTEM#readme"
 }

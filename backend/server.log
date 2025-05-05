@@ -1,0 +1,315 @@
+Using database at: ./database.sqlite
+Set up file watcher for teachers uploads directory: /Users/MacBook/Documents/GitHub/MIS-SYSTEM/karl/backend/uploads/teachers
+Scanning teachers directory for existing images: /Users/MacBook/Documents/GitHub/MIS-SYSTEM/karl/backend/uploads/teachers
+Server is running on port 5123
+Connected to the SQLite database
+Set up file watcher for teachers uploads directory: /Users/MacBook/Documents/GitHub/MIS-SYSTEM/karl/backend/uploads/teachers
+Found 3 images in teachers directory
+Processing existing teacher image: 082906.jpg
+Processing image for teacher ID: 082906
+Processing existing teacher image: 123.jpg
+Processing image for teacher ID: 123
+Processing existing teacher image: 456.jpg
+Processing image for teacher ID: 456
+Updated photo for teacher 082906 (Unknown Teacher) to /uploads/teachers/082906.jpg
+Updated photo for teacher 123 (Unknown Teacher) to /uploads/teachers/123.jpg
+Updated photo for teacher 456 (Unknown Teacher) to /uploads/teachers/456.jpg
+Teacher 123 deleted successfully
+Teacher 456 deleted successfully
+Teacher 082906 deleted successfully
+Verifying teacher ID: 0
+Verifying teacher ID: 08
+Verifying teacher ID: 082
+Verifying teacher ID: 0829
+Verifying teacher ID: 08290
+Verifying teacher ID: 082906
+Created placeholder record for teacher ID 082906 with photo /uploads/teachers/082906.jpg
+Verifying teacher ID: 08290
+Verifying teacher ID: 0829
+Verifying teacher ID: 082
+Verifying teacher ID: 08
+Verifying teacher ID: 0
+Attempting to open folder: /Users/MacBook/Desktop/Teachers
+Folder opened successfully: /Users/MacBook/Desktop/Teachers
+Attempting to open folder: /Users/MacBook/Desktop/Teachers
+Folder opened successfully: /Users/MacBook/Desktop/Teachers
+Teacher 082906 deleted successfully
+Verifying teacher ID: 0
+Verifying teacher ID: 08
+Verifying teacher ID: 082
+Verifying teacher ID: 0820
+Verifying teacher ID: 08209
+Verifying teacher ID: 0820
+Verifying teacher ID: 08209
+Verifying teacher ID: 0820
+Verifying teacher ID: 082
+Verifying teacher ID: 0829
+Verifying teacher ID: 08290
+Verifying teacher ID: 082906
+Created placeholder record for teacher ID 082906 with photo /uploads/teachers/082906.jpg
+Teacher 082906 deleted successfully
+Verifying teacher ID: 0
+Verifying teacher ID: 08
+Verifying teacher ID: 082
+Verifying teacher ID: 0829
+Verifying teacher ID: 08290
+Verifying teacher ID: 082906
+Created placeholder record for teacher ID 082906 with photo /uploads/teachers/082906.jpg
+Verifying teacher ID: 0
+Verifying teacher ID: 08
+Verifying teacher ID: 082
+Verifying teacher ID: 0820
+Verifying teacher ID: 08206
+Verifying teacher ID: 0820
+Verifying teacher ID: 082
+Verifying teacher ID: 08
+Verifying teacher ID: 082
+Verifying teacher ID: 0829
+Verifying teacher ID: 08290
+Verifying teacher ID: 082906
+Verifying teacher ID: 0
+Error reading uploads directory: [Error: ENOENT: no such file or directory, scandir '/Users/MacBook/Documents/GitHub/MIS-SYSTEM/karl/backend/uploads/teachers'] {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'scandir',
+  path: '/Users/MacBook/Documents/GitHub/MIS-SYSTEM/karl/backend/uploads/teachers'
+}
+Verifying teacher ID: 08
+Error reading uploads directory: [Error: ENOENT: no such file or directory, scandir '/Users/MacBook/Documents/GitHub/MIS-SYSTEM/karl/backend/uploads/teachers'] {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'scandir',
+  path: '/Users/MacBook/Documents/GitHub/MIS-SYSTEM/karl/backend/uploads/teachers'
+}
+Verifying teacher ID: 082
+Error reading uploads directory: [Error: ENOENT: no such file or directory, scandir '/Users/MacBook/Documents/GitHub/MIS-SYSTEM/karl/backend/uploads/teachers'] {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'scandir',
+  path: '/Users/MacBook/Documents/GitHub/MIS-SYSTEM/karl/backend/uploads/teachers'
+}
+Verifying teacher ID: 0829
+Error reading uploads directory: [Error: ENOENT: no such file or directory, scandir '/Users/MacBook/Documents/GitHub/MIS-SYSTEM/karl/backend/uploads/teachers'] {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'scandir',
+  path: '/Users/MacBook/Documents/GitHub/MIS-SYSTEM/karl/backend/uploads/teachers'
+}
+Verifying teacher ID: 08290
+Error reading uploads directory: [Error: ENOENT: no such file or directory, scandir '/Users/MacBook/Documents/GitHub/MIS-SYSTEM/karl/backend/uploads/teachers'] {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'scandir',
+  path: '/Users/MacBook/Documents/GitHub/MIS-SYSTEM/karl/backend/uploads/teachers'
+}
+Verifying teacher ID: 082906
+Verifying teacher ID: 4
+Error reading uploads directory: [Error: ENOENT: no such file or directory, scandir '/Users/MacBook/Documents/GitHub/MIS-SYSTEM/karl/backend/uploads/teachers'] {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'scandir',
+  path: '/Users/MacBook/Documents/GitHub/MIS-SYSTEM/karl/backend/uploads/teachers'
+}
+Verifying teacher ID: 45
+Error reading uploads directory: [Error: ENOENT: no such file or directory, scandir '/Users/MacBook/Documents/GitHub/MIS-SYSTEM/karl/backend/uploads/teachers'] {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'scandir',
+  path: '/Users/MacBook/Documents/GitHub/MIS-SYSTEM/karl/backend/uploads/teachers'
+}
+Verifying teacher ID: 456
+Error reading uploads directory: [Error: ENOENT: no such file or directory, scandir '/Users/MacBook/Documents/GitHub/MIS-SYSTEM/karl/backend/uploads/teachers'] {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'scandir',
+  path: '/Users/MacBook/Documents/GitHub/MIS-SYSTEM/karl/backend/uploads/teachers'
+}
+Verifying teacher ID: 45
+Error reading uploads directory: [Error: ENOENT: no such file or directory, scandir '/Users/MacBook/Documents/GitHub/MIS-SYSTEM/karl/backend/uploads/teachers'] {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'scandir',
+  path: '/Users/MacBook/Documents/GitHub/MIS-SYSTEM/karl/backend/uploads/teachers'
+}
+Verifying teacher ID: 4
+Error reading uploads directory: [Error: ENOENT: no such file or directory, scandir '/Users/MacBook/Documents/GitHub/MIS-SYSTEM/karl/backend/uploads/teachers'] {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'scandir',
+  path: '/Users/MacBook/Documents/GitHub/MIS-SYSTEM/karl/backend/uploads/teachers'
+}
+Verifying teacher ID: 1
+Error reading uploads directory: [Error: ENOENT: no such file or directory, scandir '/Users/MacBook/Documents/GitHub/MIS-SYSTEM/karl/backend/uploads/teachers'] {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'scandir',
+  path: '/Users/MacBook/Documents/GitHub/MIS-SYSTEM/karl/backend/uploads/teachers'
+}
+Verifying teacher ID: 13
+Error reading uploads directory: [Error: ENOENT: no such file or directory, scandir '/Users/MacBook/Documents/GitHub/MIS-SYSTEM/karl/backend/uploads/teachers'] {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'scandir',
+  path: '/Users/MacBook/Documents/GitHub/MIS-SYSTEM/karl/backend/uploads/teachers'
+}
+Verifying teacher ID: 132
+Error reading uploads directory: [Error: ENOENT: no such file or directory, scandir '/Users/MacBook/Documents/GitHub/MIS-SYSTEM/karl/backend/uploads/teachers'] {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'scandir',
+  path: '/Users/MacBook/Documents/GitHub/MIS-SYSTEM/karl/backend/uploads/teachers'
+}
+Verifying teacher ID: 13
+Error reading uploads directory: [Error: ENOENT: no such file or directory, scandir '/Users/MacBook/Documents/GitHub/MIS-SYSTEM/karl/backend/uploads/teachers'] {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'scandir',
+  path: '/Users/MacBook/Documents/GitHub/MIS-SYSTEM/karl/backend/uploads/teachers'
+}
+Verifying teacher ID: 1
+Error reading uploads directory: [Error: ENOENT: no such file or directory, scandir '/Users/MacBook/Documents/GitHub/MIS-SYSTEM/karl/backend/uploads/teachers'] {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'scandir',
+  path: '/Users/MacBook/Documents/GitHub/MIS-SYSTEM/karl/backend/uploads/teachers'
+}
+Verifying teacher ID: 12
+Error reading uploads directory: [Error: ENOENT: no such file or directory, scandir '/Users/MacBook/Documents/GitHub/MIS-SYSTEM/karl/backend/uploads/teachers'] {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'scandir',
+  path: '/Users/MacBook/Documents/GitHub/MIS-SYSTEM/karl/backend/uploads/teachers'
+}
+Verifying teacher ID: 123
+Error reading uploads directory: [Error: ENOENT: no such file or directory, scandir '/Users/MacBook/Documents/GitHub/MIS-SYSTEM/karl/backend/uploads/teachers'] {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'scandir',
+  path: '/Users/MacBook/Documents/GitHub/MIS-SYSTEM/karl/backend/uploads/teachers'
+}
+Verifying teacher ID: 12
+Error reading uploads directory: [Error: ENOENT: no such file or directory, scandir '/Users/MacBook/Documents/GitHub/MIS-SYSTEM/karl/backend/uploads/teachers'] {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'scandir',
+  path: '/Users/MacBook/Documents/GitHub/MIS-SYSTEM/karl/backend/uploads/teachers'
+}
+Verifying teacher ID: 1
+Error reading uploads directory: [Error: ENOENT: no such file or directory, scandir '/Users/MacBook/Documents/GitHub/MIS-SYSTEM/karl/backend/uploads/teachers'] {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'scandir',
+  path: '/Users/MacBook/Documents/GitHub/MIS-SYSTEM/karl/backend/uploads/teachers'
+}
+Verifying teacher ID: 0
+Error reading uploads directory: [Error: ENOENT: no such file or directory, scandir '/Users/MacBook/Documents/GitHub/MIS-SYSTEM/karl/backend/uploads/teachers'] {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'scandir',
+  path: '/Users/MacBook/Documents/GitHub/MIS-SYSTEM/karl/backend/uploads/teachers'
+}
+Verifying teacher ID: 08
+Error reading uploads directory: [Error: ENOENT: no such file or directory, scandir '/Users/MacBook/Documents/GitHub/MIS-SYSTEM/karl/backend/uploads/teachers'] {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'scandir',
+  path: '/Users/MacBook/Documents/GitHub/MIS-SYSTEM/karl/backend/uploads/teachers'
+}
+Verifying teacher ID: 082
+Error reading uploads directory: [Error: ENOENT: no such file or directory, scandir '/Users/MacBook/Documents/GitHub/MIS-SYSTEM/karl/backend/uploads/teachers'] {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'scandir',
+  path: '/Users/MacBook/Documents/GitHub/MIS-SYSTEM/karl/backend/uploads/teachers'
+}
+Verifying teacher ID: 0829
+Error reading uploads directory: [Error: ENOENT: no such file or directory, scandir '/Users/MacBook/Documents/GitHub/MIS-SYSTEM/karl/backend/uploads/teachers'] {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'scandir',
+  path: '/Users/MacBook/Documents/GitHub/MIS-SYSTEM/karl/backend/uploads/teachers'
+}
+Verifying teacher ID: 08296
+Error reading uploads directory: [Error: ENOENT: no such file or directory, scandir '/Users/MacBook/Documents/GitHub/MIS-SYSTEM/karl/backend/uploads/teachers'] {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'scandir',
+  path: '/Users/MacBook/Documents/GitHub/MIS-SYSTEM/karl/backend/uploads/teachers'
+}
+Verifying teacher ID: 0829
+Error reading uploads directory: [Error: ENOENT: no such file or directory, scandir '/Users/MacBook/Documents/GitHub/MIS-SYSTEM/karl/backend/uploads/teachers'] {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'scandir',
+  path: '/Users/MacBook/Documents/GitHub/MIS-SYSTEM/karl/backend/uploads/teachers'
+}
+Verifying teacher ID: 08290
+Error reading uploads directory: [Error: ENOENT: no such file or directory, scandir '/Users/MacBook/Documents/GitHub/MIS-SYSTEM/karl/backend/uploads/teachers'] {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'scandir',
+  path: '/Users/MacBook/Documents/GitHub/MIS-SYSTEM/karl/backend/uploads/teachers'
+}
+Verifying teacher ID: 082906
+Verifying teacher ID: 08290
+Error reading uploads directory: [Error: ENOENT: no such file or directory, scandir '/Users/MacBook/Documents/GitHub/MIS-SYSTEM/karl/backend/uploads/teachers'] {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'scandir',
+  path: '/Users/MacBook/Documents/GitHub/MIS-SYSTEM/karl/backend/uploads/teachers'
+}
+Verifying teacher ID: 0829
+Error reading uploads directory: [Error: ENOENT: no such file or directory, scandir '/Users/MacBook/Documents/GitHub/MIS-SYSTEM/karl/backend/uploads/teachers'] {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'scandir',
+  path: '/Users/MacBook/Documents/GitHub/MIS-SYSTEM/karl/backend/uploads/teachers'
+}
+Verifying teacher ID: 082
+Error reading uploads directory: [Error: ENOENT: no such file or directory, scandir '/Users/MacBook/Documents/GitHub/MIS-SYSTEM/karl/backend/uploads/teachers'] {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'scandir',
+  path: '/Users/MacBook/Documents/GitHub/MIS-SYSTEM/karl/backend/uploads/teachers'
+}
+Verifying teacher ID: 08
+Error reading uploads directory: [Error: ENOENT: no such file or directory, scandir '/Users/MacBook/Documents/GitHub/MIS-SYSTEM/karl/backend/uploads/teachers'] {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'scandir',
+  path: '/Users/MacBook/Documents/GitHub/MIS-SYSTEM/karl/backend/uploads/teachers'
+}
+Verifying teacher ID: 0
+Error reading uploads directory: [Error: ENOENT: no such file or directory, scandir '/Users/MacBook/Documents/GitHub/MIS-SYSTEM/karl/backend/uploads/teachers'] {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'scandir',
+  path: '/Users/MacBook/Documents/GitHub/MIS-SYSTEM/karl/backend/uploads/teachers'
+}
+Teacher 082906 deleted successfully
+Attempting to open folder: /Users/MacBook/Desktop/Teachers
+Folder opened successfully: /Users/MacBook/Desktop/Teachers
+Attempting to open folder: /Users/MacBook/Desktop/Teachers
+Folder opened successfully: /Users/MacBook/Desktop/Teachers
+Attempting to open folder: /Users/MacBook/Desktop/Teachers
+Folder opened successfully: /Users/MacBook/Desktop/Teachers
+Attempting to open folder: /Users/MacBook/Desktop/Teachers
+Folder opened successfully: /Users/MacBook/Desktop/Teachers
+Attempting to open folder: /Users/MacBook/Desktop/Teachers
+Folder opened successfully: /Users/MacBook/Desktop/Teachers
+Verifying teacher ID: C
+Verifying teacher ID: CL
+Verifying teacher ID: CLN
+Verifying teacher ID: CLN0
+Verifying teacher ID: CLN05
+Verifying teacher ID: CLN052
+Verifying teacher ID: CLN0526
+Verifying teacher ID: CLN0526A
+Verifying teacher ID: CLN0526
+Verifying teacher ID: CLN052
+Verifying teacher ID: CLN05
+Verifying teacher ID: CLN054
+Verifying teacher ID: CLN0545
+Verifying teacher ID: CLN0545A
+Attempting to open folder: /Users/MacBook/Desktop/Teachers
+Folder opened successfully: /Users/MacBook/Desktop/Teachers
