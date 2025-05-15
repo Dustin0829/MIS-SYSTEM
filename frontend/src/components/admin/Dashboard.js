@@ -8,6 +8,7 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [isRetrying, setIsRetrying] = useState(false);
+  const [selectedMember, setSelectedMember] = useState(null);
 
   const fetchDashboardData = async () => {
     try {
@@ -77,7 +78,7 @@ const Dashboard = () => {
       
       <div className="row mb-4">
         <div className="col-md-3">
-          <div className="card text-white bg-primary mb-3 shadow-sm hover-shadow">
+          <div className="card text-white bg-primary mb-3 shadow-sm hover-shadow h-100">
             <div className="card-body">
               <h5 className="card-title">Total Keys</h5>
               <p className="card-text display-4">{stats.totalKeys || 0}</p>
@@ -85,7 +86,7 @@ const Dashboard = () => {
           </div>
         </div>
         <div className="col-md-3">
-          <div className="card text-white bg-success mb-3 shadow-sm hover-shadow">
+          <div className="card text-white bg-success mb-3 shadow-sm hover-shadow h-100">
             <div className="card-body">
               <h5 className="card-title">Available Keys</h5>
               <p className="card-text display-4">{stats.availableKeys || 0}</p>
@@ -93,7 +94,7 @@ const Dashboard = () => {
           </div>
         </div>
         <div className="col-md-3">
-          <div className="card text-white bg-info mb-3 shadow-sm hover-shadow">
+          <div className="card text-white bg-info mb-3 shadow-sm hover-shadow h-100">
             <div className="card-body">
               <h5 className="card-title">Borrowed Keys</h5>
               <p className="card-text display-4">{stats.borrowedKeys || 0}</p>
@@ -101,7 +102,7 @@ const Dashboard = () => {
           </div>
         </div>
         <div className="col-md-3">
-          <div className="card text-white bg-warning mb-3 shadow-sm hover-shadow">
+          <div className="card text-white bg-warning mb-3 shadow-sm hover-shadow h-100">
             <div className="card-body">
               <h5 className="card-title">Teachers</h5>
               <p className="card-text display-4">{stats.totalTeachers || 0}</p>
@@ -159,9 +160,9 @@ const Dashboard = () => {
         </div>
       </div>
       
-      <div className="row">
+      <div className="row mb-4">
         <div className="col-md-6">
-          <div className="card shadow-sm hover-shadow">
+          <div className="card shadow-sm hover-shadow h-100">
             <div className="card-header">
               <h5 className="mb-0">Quick Actions</h5>
             </div>
@@ -180,9 +181,8 @@ const Dashboard = () => {
             </div>
           </div>
         </div>
-        
         <div className="col-md-6">
-          <div className="card shadow-sm hover-shadow">
+          <div className="card shadow-sm hover-shadow h-100">
             <div className="card-header">
               <h5 className="mb-0">System Status</h5>
             </div>
@@ -209,6 +209,99 @@ const Dashboard = () => {
           </div>
         </div>
       </div>
+
+      {/* Our Team Full Width */}
+      <div className="row">
+        <div className="col-12">
+          <div className="card shadow-sm hover-shadow">
+            <div className="card-header">
+              <h5 className="mb-0">Our Team</h5>
+            </div>
+            <div className="card-body">
+              <div className="row row-cols-7 g-2 justify-content-center">
+                {[
+                  { id: 16, name: "Franc Egos" },
+                  { id: 17, name: "Karl Sacayan" },
+                  { id: 18, name: "Redd Tanabe" },
+                  { id: 19, name: "Kurt Enriquez" },
+                  { id: 20, name: "Euan Dematera" },
+                  { id: 21, name: "Jthird Sadje" },
+                  { id: 22, name: "Justin Dacula" }
+                ].map((member) => (
+                  <div key={member.id} className="col text-center">
+                    <div className="team-image-container mb-2" style={{ cursor: 'pointer' }} onClick={() => setSelectedMember(member)}>
+                      <img
+                        src={`/images/${member.id}.png`}
+                        alt={member.name}
+                        className="img-fluid rounded-circle team-image"
+                        style={{
+                          width: '110px',
+                          height: '110px',
+                          objectFit: 'cover',
+                          border: '3px solid #fff',
+                          boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                        }}
+                        onError={(e) => {
+                          e.target.onerror = null;
+                          e.target.src = `https://via.placeholder.com/110?text=${member.name.charAt(0)}`;
+                        }}
+                      />
+                    </div>
+                    <h6 className="mb-0" style={{ fontSize: '0.9rem', fontWeight: '500' }}>{member.name}</h6>
+                    <small className="text-muted">Team Member</small>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      {/* Preview Modal */}
+      {selectedMember && (
+        <div 
+          className="modal fade show" 
+          style={{ display: 'block', backgroundColor: 'rgba(0,0,0,0.5)' }}
+          tabIndex="-1"
+        >
+          <div className="modal-dialog modal-dialog-centered">
+            <div className="modal-content">
+              <div className="modal-header">
+                <h5 className="modal-title">{selectedMember.name}</h5>
+                <button 
+                  type="button" 
+                  className="btn-close" 
+                  onClick={() => setSelectedMember(null)}
+                ></button>
+              </div>
+              <div className="modal-body text-center">
+                <img
+                  src={`/images/${selectedMember.id}.png`}
+                  alt={selectedMember.name}
+                  className="img-fluid rounded"
+                  style={{
+                    maxHeight: '70vh',
+                    width: 'auto',
+                    objectFit: 'contain'
+                  }}
+                  onError={(e) => {
+                    e.target.onerror = null;
+                    e.target.src = `https://via.placeholder.com/400x500?text=${selectedMember.name}`;
+                  }}
+                />
+              </div>
+              <div className="modal-footer">
+                <button 
+                  type="button" 
+                  className="btn btn-secondary" 
+                  onClick={() => setSelectedMember(null)}
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

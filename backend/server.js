@@ -189,7 +189,23 @@ const PORT = process.env.PORT || 5123;
 app.use(express.static('public'));
 
 // Serve uploaded files from the uploads directory
+console.log('Setting up static file serving from:', path.join(__dirname, 'uploads'));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+// Log all requests to uploads directory for debugging
+app.use('/uploads', (req, res, next) => {
+  console.log(`[Static Files] Accessing: ${req.url} from ${req.ip}`);
+  // Check if the file exists before proceeding
+  const filePath = path.join(__dirname, 'uploads', req.url);
+  fs.access(filePath, fs.constants.F_OK, (err) => {
+    if (err) {
+      console.error(`[Static Files] ERROR: File not found: ${filePath}`);
+    } else {
+      console.log(`[Static Files] File exists: ${filePath}`);
+    }
+    next();
+  });
+});
 
 // CORS configuration
 app.use(cors({
@@ -205,14 +221,15 @@ app.use(cors({
 app.options('*', cors());
 
 // Enable JSON parsing with increased limit for base64 encoded images
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 // Authentication middleware
 const authenticateToken = (req, res, next) => {
   // Skip authentication for login and public routes
   if (req.path === '/api/login' || req.path === '/' || req.path === '/api/hello' || req.path === '/api/health' || 
-      req.path.startsWith('/api/public/') || req.path === '/api/keys/available/public') {
+      req.path.startsWith('/api/public/') || req.path === '/api/keys/available/public' ||
+      req.path === '/api/debug/teacher-images') {
     return next();
   }
   
@@ -271,16 +288,25 @@ const processTeacherImage = (filename) => {
     return;
   }
   
-  // Extract teacher ID from filename (new format: teacherId.jpg)
-  // For example: 123.jpg -> teacherId = 123 or CLN0526A.jpg -> teacherId = CLN0526A
+  // Extract teacher ID from filename
+  // Support multiple formats:
+  // 1. teacherId_Name_Department.jpg
+  // 2. teacherId.jpg
   const filenameWithoutExt = path.basename(filename, ext);
   
-  // The filename should now be just the teacher ID
-  const teacherId = filenameWithoutExt;
+  let teacherId;
+  if (filenameWithoutExt.includes('_')) {
+    // Format: teacherId_Name_Department.jpg
+    const parts = filenameWithoutExt.split('_');
+    teacherId = parts[0];
+  } else {
+    // Format: teacherId.jpg
+    teacherId = filenameWithoutExt;
+  }
   
   // Check if the ID appears to be valid (allow alphanumeric characters)
   if (!/^[a-zA-Z0-9]+$/.test(teacherId)) {
-    console.log(`Invalid teacher ID in filename: ${filename}. Filename should only contain letters and numbers.`);
+    console.log(`Invalid teacher ID in filename: ${filename}. ID part should only contain letters and numbers.`);
     return;
   }
   
@@ -314,15 +340,30 @@ const processTeacherImage = (filename) => {
       );
     } else {
       // Teacher doesn't exist yet, but we have their photo
-      // Just store the photo URL with a placeholder name - proper details can be added later via Excel
+      // Extract name and department from filename if possible
+      let name = `Teacher ${teacherId}`;
+      let department = 'Unknown Department';
+      
+      if (filenameWithoutExt.includes('_')) {
+        const parts = filenameWithoutExt.split('_');
+        if (parts.length >= 2) {
+          name = parts[1].replace(/-/g, ' ');
+        }
+        
+        if (parts.length >= 3) {
+          department = parts[2].replace(/-/g, ' ');
+        }
+      }
+      
+      // Create teacher record with information from the filename
       db.run(
         "INSERT INTO teachers (id, name, department, photo_url) VALUES (?, ?, ?, ?)",
-        [teacherId, `Teacher ${teacherId}`, 'Unknown Department', relativePath],
+        [teacherId, name, department, relativePath],
         (err) => {
           if (err) {
             console.error(`Error creating teacher record for ID ${teacherId}:`, err);
           } else {
-            console.log(`Created placeholder record for teacher ID ${teacherId} with photo ${relativePath}`);
+            console.log(`Created record for teacher ID ${teacherId} with photo ${relativePath}`);
           }
         }
       );
@@ -545,6 +586,12 @@ app.get('/api/teachers/verify/:id', async (req, res) => {
       
       // If teacher exists in database, return that information
       if (teacher) {
+        console.log(`Teacher ${teacherId} found in database:`, teacher);
+        // Ensure photo_url is properly formed
+        if (teacher.photo_url && !teacher.photo_url.startsWith('data:image') && !teacher.photo_url.startsWith('/')) {
+          teacher.photo_url = '/' + teacher.photo_url;
+        }
+        
         return res.json({
           success: true, 
           teacher: {
@@ -567,11 +614,13 @@ app.get('/api/teachers/verify/:id', async (req, res) => {
           return res.json({ success: false, message: 'Teacher not found' });
         }
         
-        // Find files with matching ID (filename should be just the ID with extension)
+        // Find files with matching ID in the filename (should start with the ID followed by underscore or just the ID)
         const teacherFiles = files.filter(file => {
           const filename = path.parse(file).name; // Get filename without extension
-          return filename === teacherId;
+          return filename === teacherId || filename.startsWith(teacherId + '_'); // Check if matches ID exactly or starts with ID_
         });
+        
+        console.log(`Searching for teacher ID ${teacherId} in files, found: ${teacherFiles.length} matches`);
         
         if (teacherFiles.length === 0) {
           // No matching files found
@@ -583,12 +632,26 @@ app.get('/api/teachers/verify/:id', async (req, res) => {
         
         // Create a photo URL for the file
         const photoUrl = `/uploads/teachers/${teacherFile}`;
+        console.log(`Using photo from file: ${photoUrl}`);
+        
+        // Parse the filename to extract name and department if present
+        const filenameParts = path.parse(teacherFile).name.split('_');
+        let name = `Teacher ${teacherId}`;
+        let department = 'Unknown Department';
+        
+        if (filenameParts.length >= 2) {
+          name = filenameParts[1].replace(/-/g, ' ');
+        }
+        
+        if (filenameParts.length >= 3) {
+          department = filenameParts[2].replace(/-/g, ' ');
+        }
         
         // Create a placeholder teacher object
         const teacherFromFile = {
           id: teacherId,
-          name: `Teacher ${teacherId}`,
-          department: 'Unknown Department',
+          name: name,
+          department: department,
           photo_url: photoUrl,
           source: 'file'
         };
@@ -788,6 +851,61 @@ app.post('/api/public/return', async (req, res) => {
 // Apply authentication middleware
 app.use(authenticateToken);
 
+// General endpoint for getting the upload path information
+app.get('/api/teachers/upload-path', (req, res) => {
+  // Return the upload path information
+  res.json({
+    success: true,
+    uploadPath: uploadsDir,
+    filenameFormat: "TeacherID_Name_Department.jpg",
+    uploadInstructions: "Place image files in the teachers folder with filename format: TeacherID_Name_Department.jpg"
+  });
+});
+
+// Clear all teachers (admin only)
+app.delete('/api/teachers/clear-all', authorizeAdmin, async (req, res) => {
+  try {
+    // Get all teachers
+    db.all("SELECT id FROM teachers", async (err, teachers) => {
+      if (err) {
+        return res.status(500).json({ error: 'Database error' });
+      }
+      if (!teachers || teachers.length === 0) {
+        return res.json({ message: 'No teachers to delete.' });
+      }
+      let deleted = 0;
+      let skipped = 0;
+      for (const teacher of teachers) {
+        // Check for active transactions
+        const hasActive = await new Promise((resolve) => {
+          db.get(
+            "SELECT COUNT(*) as activeCount FROM transactions WHERE teacherId = ? AND returnDate IS NULL",
+            [teacher.id],
+            (err, result) => {
+              if (err) return resolve(true); // skip on error
+              resolve(result.activeCount > 0);
+            }
+          );
+        });
+        if (hasActive) {
+          skipped++;
+          continue;
+        }
+        await new Promise((resolve) => {
+          db.run("DELETE FROM teachers WHERE id = ?", [teacher.id], (err) => {
+            if (!err) deleted++;
+            resolve();
+          });
+        });
+      }
+      res.json({ message: `Deleted ${deleted} teachers. Skipped ${skipped} with active borrowed keys.` });
+    });
+  } catch (error) {
+    console.error('Error clearing all teachers:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 // Get all teachers
 app.get('/api/teachers', async (req, res) => {
   try {
@@ -797,7 +915,15 @@ app.get('/api/teachers', async (req, res) => {
         return res.status(500).json({ error: 'Database error' });
       }
       
-      res.json(teachers || []);
+      // Normalize photo URLs to ensure they start with '/' if they're not base64
+      const normalizedTeachers = teachers.map(teacher => {
+        if (teacher.photo_url && !teacher.photo_url.startsWith('data:image') && !teacher.photo_url.startsWith('/')) {
+          teacher.photo_url = '/' + teacher.photo_url;
+        }
+        return teacher;
+      });
+      
+      res.json(normalizedTeachers || []);
     });
   } catch (error) {
     console.error('Error getting teachers:', error);
@@ -813,11 +939,16 @@ app.get('/api/teachers/:id', async (req, res) => {
     db.get("SELECT id, name, department, photo_url, created_at FROM teachers WHERE id = ?", [teacherId], (err, teacher) => {
       if (err) {
         console.error('Database error:', err);
-      return res.status(500).json({ error: 'Database error' });
-    }
+        return res.status(500).json({ error: 'Database error' });
+      }
       
       if (!teacher) {
         return res.status(404).json({ error: 'Teacher not found' });
+      }
+      
+      // Normalize photo URL if it exists and isn't base64
+      if (teacher.photo_url && !teacher.photo_url.startsWith('data:image') && !teacher.photo_url.startsWith('/')) {
+        teacher.photo_url = '/' + teacher.photo_url;
       }
       
       res.json(teacher);
@@ -837,10 +968,18 @@ app.post('/api/teachers', authorizeAdmin, async (req, res) => {
       return res.status(400).json({ error: 'ID and name are required' });
     }
     
+    console.log(`Creating teacher with ID: ${id}, name: ${name}, photoProvided: ${!!photo_url}`);
+    if (photo_url) {
+      console.log(`Photo URL length: ${photo_url.length} characters`);
+      const isBase64 = photo_url.startsWith('data:image');
+      console.log(`Is base64 image: ${isBase64}`);
+    }
+    
     // Check if teacher exists
     db.get("SELECT * FROM teachers WHERE id = ?", [id], async (err, existingTeacher) => {
       if (err) {
-        return res.status(500).json({ error: 'Database error' });
+        console.error('Database error:', err);
+        return res.status(500).json({ error: 'Database error: ' + err.message });
       }
       
       if (existingTeacher) {
@@ -853,13 +992,15 @@ app.post('/api/teachers', authorizeAdmin, async (req, res) => {
         [id, name, department || null, photo_url || null],
         function(err) {
           if (err) {
-            return res.status(500).json({ error: 'Error creating teacher profile' });
-    }
+            console.error('Error creating teacher profile:', err);
+            return res.status(500).json({ error: 'Error creating teacher profile: ' + err.message });
+          }
     
-    res.status(201).json({
+          res.status(201).json({
             id,
             name,
             department,
+            photo_url: photo_url,
             message: 'Teacher created successfully'
           });
         }
@@ -867,7 +1008,7 @@ app.post('/api/teachers', authorizeAdmin, async (req, res) => {
     });
   } catch (error) {
     console.error('Error creating teacher:', error);
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ error: 'Server error: ' + error.message });
   }
 });
 
@@ -877,11 +1018,18 @@ app.put('/api/teachers/:id', authorizeAdmin, async (req, res) => {
     const teacherId = req.params.id;
     const { name, department, photo_url } = req.body;
   
-  if (!name) {
-    return res.status(400).json({ error: 'Name is required' });
-  }
+    if (!name) {
+      return res.status(400).json({ error: 'Name is required' });
+    }
   
-    console.log(`Updating teacher ${teacherId} with:`, req.body);
+    console.log(`Updating teacher ${teacherId} with:`, { name, department, photoProvided: !!photo_url });
+    
+    if (photo_url) {
+      console.log(`Photo URL length: ${photo_url.length} characters`);
+      // Check if it's a base64 string
+      const isBase64 = photo_url.startsWith('data:image');
+      console.log(`Is base64 image: ${isBase64}`);
+    }
     
     // Check if teacher exists
     db.get("SELECT * FROM teachers WHERE id = ?", [teacherId], (err, existingTeacher) => {
@@ -891,8 +1039,8 @@ app.put('/api/teachers/:id', authorizeAdmin, async (req, res) => {
       }
       
       if (!existingTeacher) {
-      return res.status(404).json({ error: 'Teacher not found' });
-    }
+        return res.status(404).json({ error: 'Teacher not found' });
+      }
     
       // Update teacher profile
       db.run(
@@ -901,7 +1049,7 @@ app.put('/api/teachers/:id', authorizeAdmin, async (req, res) => {
         function(err) {
           if (err) {
             console.error('Error updating teacher:', err);
-            return res.status(500).json({ error: 'Error updating teacher profile' });
+            return res.status(500).json({ error: 'Error updating teacher profile: ' + err.message });
           }
           
           if (this.changes === 0) {
@@ -909,11 +1057,11 @@ app.put('/api/teachers/:id', authorizeAdmin, async (req, res) => {
           }
           
           console.log(`Teacher ${teacherId} updated successfully`);
-    res.json({
+          res.json({
             id: teacherId,
             name,
             department,
-            photo_url,
+            photo_url: photo_url,
             message: 'Teacher updated successfully'
           });
         }
@@ -921,7 +1069,7 @@ app.put('/api/teachers/:id', authorizeAdmin, async (req, res) => {
     });
   } catch (error) {
     console.error('Error updating teacher:', error);
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ error: 'Server error: ' + error.message });
   }
 });
 
@@ -1383,17 +1531,6 @@ app.post('/api/teachers/:teacherId/ensure-folder', authenticateToken, (req, res)
   });
 });
 
-// General endpoint for getting the upload path information
-app.get('/api/teachers/upload-path', authenticateToken, (req, res) => {
-  // Return the upload path information
-  res.json({
-    success: true,
-    uploadPath: uploadsDir,
-    filenameFormat: "teacherId_filename.jpg",
-    uploadInstructions: "Place image files in the teachers folder with filename format: teacherId_filename.jpg"
-  });
-});
-
 // Route to get a teacher's upload folder path
 app.get('/api/teachers/:teacherId/upload-path', authenticateToken, (req, res) => {
   const { teacherId } = req.params;
@@ -1414,10 +1551,84 @@ app.get('/api/teachers/:teacherId/upload-path', authenticateToken, (req, res) =>
       success: true,
       teacherId,
       uploadPath: uploadsDir,
-      filenameFormat: `${teacherId}_filename.jpg`,
-      uploadInstructions: `Place image files in the teachers folder with filename format: ${teacherId}_filename.jpg`
+      filenameFormat: `${teacherId}_Name_Department.jpg`,
+      uploadInstructions: `Place image files in the teachers folder with filename format: ${teacherId}_Name_Department.jpg`
     });
   });
+});
+
+// Route to manually trigger re-scanning of the teachers directory
+app.post('/api/teachers/rescan-directory', authenticateToken, authorizeAdmin, (req, res) => {
+  console.log('Manually triggering rescan of teachers directory');
+  try {
+    scanTeacherDirectory();
+    res.json({ 
+      success: true, 
+      message: 'Teacher directory scan initiated. Check server logs for results.' 
+    });
+  } catch (error) {
+    console.error('Error initiating directory scan:', error);
+    res.status(500).json({ error: 'Server error while scanning directory' });
+  }
+});
+
+// Debug route to check image URLs
+app.get('/api/debug/teacher-images', (req, res) => {
+  try {
+    // Scan images in the upload directory
+    fs.readdir(uploadsDir, (err, files) => {
+      if (err) {
+        console.error('Error reading teachers directory:', err);
+        return res.status(500).json({ error: 'Error reading directory' });
+      }
+      
+      // Filter for image files
+      const allowedExtensions = ['.jpg', '.jpeg', '.png', '.gif'];
+      const imageFiles = files.filter(file => {
+        const ext = path.extname(file).toLowerCase();
+        return allowedExtensions.includes(ext);
+      });
+      
+      // Get information about each image
+      const images = imageFiles.map(file => {
+        return {
+          filename: file,
+          path: path.join(uploadsDir, file),
+          url: `/uploads/teachers/${file}`,
+          exists: fs.existsSync(path.join(uploadsDir, file)),
+          size: fs.existsSync(path.join(uploadsDir, file)) ? 
+                fs.statSync(path.join(uploadsDir, file)).size : 0
+        };
+      });
+      
+      // Also check database for photo_url entries
+      db.all("SELECT id, name, department, photo_url FROM teachers WHERE photo_url IS NOT NULL", (err, teachers) => {
+        if (err) {
+          console.error('Error querying teachers with photos:', err);
+          return res.json({ 
+            images,
+            teachersWithPhotos: [],
+            message: 'Error querying database' 
+          });
+        }
+        
+        res.json({
+          uploadsDir,
+          imageCount: images.length,
+          images,
+          teachersWithPhotos: teachers,
+          staticServing: {
+            uploadsDirExists: fs.existsSync(path.join(__dirname, 'uploads')),
+            teachersDirExists: fs.existsSync(uploadsDir),
+            serverPath: __dirname
+          }
+        });
+      });
+    });
+  } catch (error) {
+    console.error('Error in debug endpoint:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
 });
 
 // Only start the server if this file is run directly

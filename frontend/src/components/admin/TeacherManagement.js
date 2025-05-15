@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { toast } from 'react-toastify';
-import { getTeachers, addTeacher, updateTeacher, deleteTeacher, getTeacherUploadPath } from '../../services/api';
+import { getTeachers, addTeacher, updateTeacher, deleteTeacher, getTeacherUploadPath, clearAllTeachers } from '../../services/api';
 
 // Importing teacher by Excel file
 import * as XLSX from 'xlsx';
@@ -27,6 +27,9 @@ const TeacherManagement = () => {
   const [photoFile, setPhotoFile] = useState(null);
   const [photoPreview, setPhotoPreview] = useState(null);
   const [uploadPathInfo, setUploadPathInfo] = useState(null);
+  const [showClearAllModal, setShowClearAllModal] = useState(false);
+  const [verificationStep, setVerificationStep] = useState(1);
+  const [verificationText, setVerificationText] = useState('');
 
   // Handle tab switching
   const handleTabChange = (tab) => {
@@ -177,7 +180,10 @@ const TeacherManagement = () => {
   const convertFileToBase64 = (file) => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
-      reader.onload = () => resolve(reader.result);
+      reader.onload = () => {
+        console.log(`Converted ${file.name} to base64 string, size: ${reader.result.length} characters`);
+        resolve(reader.result);
+      };
       reader.onerror = (error) => reject(error);
       reader.readAsDataURL(file);
     });
@@ -335,6 +341,17 @@ const TeacherManagement = () => {
       <div className="d-flex justify-content-between align-items-center mb-4">
         <h2>Teacher Management</h2>
         <div className="d-flex gap-2">
+          <button
+            className="btn btn-danger"
+            onClick={() => {
+              setShowClearAllModal(true);
+              setVerificationStep(1);
+              setVerificationText('');
+            }}
+          >
+            <i className="bi bi-trash me-2"></i>
+            Clear All Teachers
+          </button>
           <button 
             className="btn btn-primary" 
             onClick={() => {
@@ -779,10 +796,17 @@ const TeacherManagement = () => {
                       <td>
                         {teacher.photo_url ? (
                           <img 
-                            src={teacher.photo_url} 
+                            src={teacher.photo_url.startsWith('data:image') ? 
+                              teacher.photo_url : 
+                              (teacher.photo_url.startsWith('/') ? teacher.photo_url : `/${teacher.photo_url}`)} 
                             alt={teacher.name}
                             className="rounded-circle"
                             style={{ width: '40px', height: '40px', objectFit: 'cover' }}
+                            onError={(e) => {
+                              console.error(`Error loading image for ${teacher.id}:`, e);
+                              e.target.onerror = null;
+                              e.target.src = 'https://via.placeholder.com/40?text=NA';
+                            }}
                           />
                         ) : (
                           <div 
@@ -817,6 +841,106 @@ const TeacherManagement = () => {
           )}
         </div>
       </div>
+      {showClearAllModal && (
+        <div className="modal fade show" style={{ display: 'block', backgroundColor: 'rgba(0,0,0,0.5)' }} tabIndex="-1">
+          <div className="modal-dialog modal-dialog-centered">
+            <div className="modal-content">
+              <div className="modal-header bg-danger text-white">
+                <h5 className="modal-title">
+                  {verificationStep === 1 ? 'Clear All Teachers - Step 1' : 'Clear All Teachers - Step 2'}
+                </h5>
+                <button
+                  type="button"
+                  className="btn-close btn-close-white"
+                  onClick={() => {
+                    setShowClearAllModal(false);
+                    setVerificationStep(1);
+                    setVerificationText('');
+                  }}
+                ></button>
+              </div>
+              <div className="modal-body">
+                {verificationStep === 1 ? (
+                  <div>
+                    <div className="alert alert-danger">
+                      <i className="bi bi-exclamation-triangle-fill me-2"></i>
+                      <strong>Warning:</strong> This action will permanently delete all teachers from the system.
+                    </div>
+                    <p>Are you sure you want to proceed with clearing all teachers?</p>
+                    <p>This action cannot be undone.</p>
+                  </div>
+                ) : (
+                  <div>
+                    <div className="alert alert-danger">
+                      <i className="bi bi-exclamation-triangle-fill me-2"></i>
+                      <strong>Final Verification Required</strong>
+                    </div>
+                    <p>To confirm deletion of all teachers, please type:</p>
+                    <p className="fw-bold text-danger mb-3">delete all teachers</p>
+                    <input
+                      type="text"
+                      className="form-control"
+                      value={verificationText}
+                      onChange={(e) => setVerificationText(e.target.value)}
+                      placeholder="Type the verification text"
+                    />
+                  </div>
+                )}
+              </div>
+              <div className="modal-footer">
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => {
+                    setShowClearAllModal(false);
+                    setVerificationStep(1);
+                    setVerificationText('');
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-danger"
+                  onClick={async () => {
+                    if (verificationStep === 1) {
+                      setVerificationStep(2);
+                      return;
+                    }
+                    if (verificationText.toLowerCase() !== 'delete all teachers') {
+                      toast.error('Verification text does not match. Please try again.');
+                      return;
+                    }
+                    try {
+                      setLoading(true);
+                      await clearAllTeachers();
+                      toast.success('All teachers have been cleared successfully');
+                      setShowClearAllModal(false);
+                      setVerificationStep(1);
+                      setVerificationText('');
+                      fetchTeachers();
+                    } catch (error) {
+                      toast.error('Failed to clear all teachers: ' + error.message);
+                    } finally {
+                      setLoading(false);
+                    }
+                  }}
+                  disabled={loading}
+                >
+                  {loading ? (
+                    <>
+                      <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                      Processing...
+                    </>
+                  ) : (
+                    verificationStep === 1 ? 'Proceed to Verification' : 'Confirm Delete All'
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

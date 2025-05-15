@@ -123,7 +123,7 @@ const TeacherPortal = () => {
               id: response.teacher.id,
               name: response.teacher.name,
               department: response.teacher.department,
-              photoUrl: response.teacher.photo_url || 'https://via.placeholder.com/150',
+              photoUrl: response.teacher.photo_url ? `${window.location.origin}${response.teacher.photo_url}` : 'https://via.placeholder.com/150',
               source: response.teacher.source || 'database'
             });
           } else {
@@ -239,16 +239,16 @@ const TeacherPortal = () => {
 
   return (
     <div className="container py-5">
-      <div className="text-center mb-4">
-        <h1
-          className="fw-bold"
-          style={{
-            color: '#FFFFFF',
-            textShadow: '1px 1px 2px black',
-          }}
-        >
-          STI Laboratory Key Portal
-        </h1>
+    <div className="text-center mb-4">
+    <h1
+        className="fw-bold"
+        style={{
+        color: '#FFFFFF',
+        textShadow: '1px 1px 2px black',
+  }}
+>
+  STI Laboratory Key Portal
+</h1>
       </div>
       
       <div className="row">
@@ -284,15 +284,15 @@ const TeacherPortal = () => {
               <div className="mb-4">
                 <label htmlFor="teacherId" className="form-label fw-bold">Teacher ID</label>
                 <div className="input-group mb-3">
-                  <input
-                    type="text"
-                    className="form-control"
-                    id="teacherId"
-                    value={teacherId}
-                    onChange={handleTeacherIdChange}
-                    placeholder="Enter your Teacher ID"
-                    required
-                  />
+                <input
+                  type="text"
+                  className="form-control"
+                  id="teacherId"
+                  value={teacherId}
+                  onChange={handleTeacherIdChange}
+                  placeholder="Enter your Teacher ID"
+                  required
+                />
                   {loading && (
                     <span className="input-group-text">
                       <div className="spinner-border spinner-border-sm" role="status">
@@ -382,9 +382,9 @@ const TeacherPortal = () => {
         <div className="col-lg-4">
           {teacherInfo ? (
             <div className="card shadow-lg h-100" style={{ background: 'rgba(255, 255, 255, 0.95)' }}>
-              <div className="card-header bg-primary text-white">
-                <h5 className="mb-0">Teacher Information</h5>
-              </div>
+            <div className="card-header bg-primary text-white">
+              <h5 className="mb-0">Teacher Information</h5>
+            </div>
               <div className="card-body p-3 text-center">
                 <div className="teacher-photo-container mb-3" style={{ 
                   height: '250px', 
@@ -395,9 +395,9 @@ const TeacherPortal = () => {
                   border: '1px solid #dee2e6',
                   borderRadius: '4px' 
                 }}>
-                  <img
-                    src={teacherInfo.photoUrl}
-                    alt="Teacher"
+              <img
+                src={teacherInfo.photoUrl}
+                alt="Teacher"
                     className="img-fluid"
                     style={{ 
                       maxHeight: '100%', 
@@ -408,7 +408,7 @@ const TeacherPortal = () => {
                       e.target.onerror = null;
                       e.target.src = 'https://via.placeholder.com/300x400?text=No+Photo';
                     }}
-                  />
+              />
                 </div>
                 <div className="teacher-id-card p-2 border rounded bg-light">
                   <h5 className="card-title fw-bold mb-3">{teacherInfo.name}</h5>
@@ -441,13 +441,13 @@ const TeacherPortal = () => {
                 <i className="bi bi-person-badge" style={{ fontSize: '4rem', color: '#ccc' }}></i>
                 <h5 className="mt-3">Teacher Verification</h5>
                 <p className="text-muted">Enter a valid Teacher ID to display information</p>
-              </div>
             </div>
-          )}
+          </div>
+        )}
         </div>
       </div>
     </div>
-  );
+);
 };
 
 export default TeacherPortal; 

@@ -128,12 +128,15 @@ export const getTeachers = async () => {
     const response = await api.get('/teachers');
     console.log('Teachers data retrieved:', response.data);
     
+    // Handle both array responses and responses with a data property
+    const teachersData = Array.isArray(response.data) ? response.data : (response.data?.data || []);
+    
     // Update shared data store
     if (dataSyncService.updateTeachers) {
-      dataSyncService.updateTeachers(response.data);
+      dataSyncService.updateTeachers(teachersData);
     }
     
-    return response.data;
+    return teachersData;
   } catch (error) {
     console.error('Error fetching teachers:', error);
     throw error.toString();
@@ -195,6 +198,16 @@ export const deleteTeacher = async (id) => {
   }
 };
 
+export const clearAllTeachers = async () => {
+  try {
+    const response = await api.delete('/teachers/clear-all');
+    return response.data;
+  } catch (error) {
+    console.error('Error clearing all teachers:', error);
+    throw error.toString();
+  }
+};
+
 // Get upload path for teacher photos
 export const getTeacherUploadPath = async () => {
   try {
@@ -202,6 +215,17 @@ export const getTeacherUploadPath = async () => {
     return response.data;
   } catch (error) {
     console.error('Error getting teacher upload path:', error);
+    throw error.toString();
+  }
+};
+
+// Trigger a manual rescan of the teachers photos directory
+export const rescanTeachersDirectory = async () => {
+  try {
+    const response = await api.post('/teachers/rescan-directory');
+    return response.data;
+  } catch (error) {
+    console.error('Error triggering teachers directory scan:', error);
     throw error.toString();
   }
 };

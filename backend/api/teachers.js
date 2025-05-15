@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
-const db = require('../server');
+const { db } = require('../server');
+const { authorizeAdmin } = require('./auth');
 
 // Get all teachers
 router.get('/', (req, res) => {
@@ -116,6 +117,50 @@ router.delete('/:id', (req, res) => {
       res.json({ message: 'Teacher deleted successfully' });
     });
   });
+});
+
+// Clear all teachers (admin only)
+router.delete('/clear-all', authorizeAdmin, async (req, res) => {
+  try {
+    // Get all teachers
+    db.all("SELECT id FROM teachers", async (err, teachers) => {
+      if (err) {
+        return res.status(500).json({ error: 'Database error' });
+      }
+      if (!teachers || teachers.length === 0) {
+        return res.json({ message: 'No teachers to delete.' });
+      }
+      let deleted = 0;
+      let skipped = 0;
+      for (const teacher of teachers) {
+        // Check for active transactions
+        const hasActive = await new Promise((resolve) => {
+          db.get(
+            "SELECT COUNT(*) as activeCount FROM transactions WHERE teacherId = ? AND returnDate IS NULL",
+            [teacher.id],
+            (err, result) => {
+              if (err) return resolve(true); // skip on error
+              resolve(result.activeCount > 0);
+            }
+          );
+        });
+        if (hasActive) {
+          skipped++;
+          continue;
+        }
+        await new Promise((resolve) => {
+          db.run("DELETE FROM teachers WHERE id = ?", [teacher.id], (err) => {
+            if (!err) deleted++;
+            resolve();
+          });
+        });
+      }
+      res.json({ message: `Deleted ${deleted} teachers. Skipped ${skipped} with active borrowed keys.` });
+    });
+  } catch (error) {
+    console.error('Error clearing all teachers:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
 });
 
 module.exports = router; 
